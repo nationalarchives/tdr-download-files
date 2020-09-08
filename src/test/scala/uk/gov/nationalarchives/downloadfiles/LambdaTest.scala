@@ -1,12 +1,11 @@
 package uk.gov.nationalarchives.downloadfiles
 
-import java.io.File
 import java.util.UUID
 
-import org.scalatest.matchers.should.Matchers.{equal, _}
-import uk.gov.nationalarchives.downloadfiles.AWSUtils.{getClass, _}
-import io.circe.parser.decode
 import io.circe.generic.auto._
+import io.circe.parser.decode
+import org.scalatest.matchers.should.Matchers.{equal, _}
+import uk.gov.nationalarchives.downloadfiles.AWSUtils._
 import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 
 import scala.io.Source
