@@ -23,6 +23,8 @@ lazy val root = (project in file("."))
         authUtils,
         generatedGraphql,
         graphqlClient,
+        scalaLogging,
+        logback,
         scalaTest % Test,
         mockito % Test,
         s3Mock % Test,

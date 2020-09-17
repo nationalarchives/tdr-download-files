@@ -5,6 +5,7 @@ import java.util.UUID
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.Logger
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables}
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
 import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
@@ -24,11 +25,14 @@ import io.circe.syntax._
 import io.circe.generic.auto._
 import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 
+import scala.util.Try
+
 class Lambda {
   val config: Config = ConfigFactory.load
   val sqsUtils: SQSUtils = SQSUtils(sqs)
   val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(config.getString("sqs.queue.input"), _)
   val sendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.fileformat"), _)
+  val logger: Logger = Logger[Lambda]
 
   def process(event: SQSEvent, context: Context): List[String] = {
     val efsRootLocation = ConfigFactory.load.getString("efs.root.location")
