@@ -54,7 +54,6 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockGraphqlServer.stop()
     wiremockAuthServer.stop()
     api.shutdown()
-    api.shutdown
   }
 
   override def afterEach(): Unit = {
