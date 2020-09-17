@@ -43,7 +43,7 @@ class Lambda {
     val eventsWithErrors = decodeS3EventFromSqs(event)
     val fileUtils = FileUtils()
 
-    val result: List[Future[Either[String, String]]] = eventsWithErrors.events
+    val result: List[Future[Try[String]]] = eventsWithErrors.events
         .flatMap(e => e.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
@@ -59,10 +59,12 @@ class Lambda {
             })
           }).flatten)
         }))
-    val results: List[Either[String, String]] = Await.result(Future.sequence(result), 10 seconds)
-    val (downloadFileFailed, downloadFileSucceeded) = results.partitionMap(identity)
-    val allErrors = downloadFileFailed ++ eventsWithErrors.errors.map(_.getCause.getMessage)
+    val results: List[Try[String]] = Await.result(Future.sequence(result), 10 seconds)
+
+    val (downloadFileFailed: List[Throwable], downloadFileSucceeded) = results.partitionMap(_.toEither)
+    val allErrors: List[Throwable] = downloadFileFailed ++ eventsWithErrors.errors.map(_.getCause)
     if (allErrors.nonEmpty) {
+      allErrors.foreach(e => logger.error(e.getMessage, e))
       downloadFileSucceeded.map(deleteMessage)
       throw new RuntimeException(allErrors.mkString("\n"))
     } else {

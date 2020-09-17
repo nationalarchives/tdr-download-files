@@ -26,6 +26,8 @@ import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
+import scala.util.Try
+import org.scalatest.TryValues._
 
 class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with ScalaFutures  {
   implicit val backend: SttpBackend[Identity, Nothing, NothingT] = HttpURLConnectionBackend()
@@ -78,8 +80,9 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("")))), List())))
 
     val fileUtils = FileUtils()
-    val result: Either[String, String] = fileUtils.getFilePath(keycloakUtils, client, uuid).futureValue
-    result.left.value should equal("The original path is missing or empty")
+    val result: Try[String] = fileUtils.getFilePath(keycloakUtils, client, uuid).futureValue
+
+    result.failure.exception.getMessage should equal(s"The original path for fileId $uuid is missing or empty")
 
   }
 
@@ -94,7 +97,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("originalPath")))), List())))
 
     val fileUtils = FileUtils()
-    val result: Either[String, String] = fileUtils.getFilePath(keycloakUtils, client, uuid).futureValue
+    val result: Try[String] = fileUtils.getFilePath(keycloakUtils, client, uuid).futureValue
     result.map(r => r should equal("originalPath"))
 
   }
@@ -127,8 +130,8 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with
       .thenReturn(Future.successful(new BearerAccessToken("token")))
     when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[Variables]])(any[SttpBackend[Identity, Nothing, NothingT]], any[ClassTag[Identity[_]]])).thenThrow(new HttpException(response))
 
-    val res: Either[String, String] = FileUtils().getFilePath(keycloakUtils, client, uuid).futureValue
-    res.left.value shouldEqual "Unexpected response from GraphQL API: Response(Left(Graphql error),503,,List(),List())"
+    val res: Try[String] = FileUtils().getFilePath(keycloakUtils, client, uuid).futureValue
+    res.failure.exception.getMessage shouldEqual "Unexpected response from GraphQL API: Response(Left(Graphql error),503,,List(),List())"
   }
 
   "The getFilePath method" should "error if the graphql query returns not authorised errors" in {
@@ -147,7 +150,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with
 
     val res = FileUtils().getFilePath(keycloakUtils, client, uuid).futureValue
 
-    res.left.value shouldEqual "Not authorised message"
+    res.failure.exception.getMessage shouldEqual "Not authorised message"
   }
 
   "The getFilePath method" should "error if the graphql query returns a general error" in {
@@ -163,7 +166,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with
       .thenReturn(Future.successful(graphqlResponse))
 
     val res = FileUtils().getFilePath(keycloakUtils, client, UUID.randomUUID()).futureValue
-    res.left.value shouldEqual "GraphQL response contained errors: General error"
+    res.failure.exception.getMessage shouldEqual "GraphQL response contained errors: General error"
   }
 
   "The writeFileFromS3 method" should "write the file to the specified path" in {
@@ -194,6 +197,6 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with EitherValues with
     val record = new S3EventNotificationRecord(null, null, null, null, null, null, null, new S3Entity("", bucket, obj, ""), null)
     when(s3Client.getObject(any[GetObjectRequest], any[Path])).thenThrow(new RuntimeException("error"))
     val response = FileUtils().writeFileFromS3(path, fileId, record, s3Client)
-    response.left.value should equal("error")
+    response.failure.exception.getMessage should equal("error")
   }
 }

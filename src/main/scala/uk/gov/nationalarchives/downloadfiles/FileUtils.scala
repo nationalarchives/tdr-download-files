@@ -15,37 +15,44 @@ import uk.gov.nationalarchives.tdr.error.NotAuthorisedError
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class FileUtils()(implicit val executionContext: ExecutionContext) {
   val config: Config = ConfigFactory.load
 
-  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID)(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[Either[String, String]] = {
+  case class DownloadFilesException(msg: String) extends RuntimeException
 
-    val queryResult: Future[Either[String, GraphQlResponse[Data]]] = (for {
+  implicit class OptFunction(strOpt: Option[String]) {
+    def failIfPathEmpty(fileId: UUID): Try[String] = if ((strOpt.isDefined && strOpt.get.isEmpty) || strOpt.isEmpty) {
+      Failure(new RuntimeException(s"The original path for fileId $fileId is missing or empty"))
+    } else {
+      Success(strOpt.get)
+    }
+  }
+
+  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID)(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[Try[String]] = {
+
+    val queryResult: Future[Try[GraphQlResponse[Data]]] = (for {
       token <- keycloakUtils.serviceAccountToken(config.getString("auth.client.id"), config.getString("auth.client.secret"))
       result <- client.getResult(token, document, Option(Variables(fileId)))
-    } yield Right(result)) recover(e => {
-      Left(e.getMessage)
+    } yield Success(result)) recover (e => {
+      Failure(e)
     })
 
-    val result = queryResult.map {
-      case Right(response) => response.errors match {
-        case Nil => Right(response.data.get)
-        case List(authError: NotAuthorisedError) => Left(authError.message)
-        case errors => Left(s"GraphQL response contained errors: ${errors.map(e => e.message).mkString}")
+    queryResult.map(_.map(
+      response => {
+        response.errors match {
+          case Nil => response.data.get.getClientFileMetadata.originalPath.failIfPathEmpty(fileId)
+          case List(authorisedError: NotAuthorisedError) => Failure(new RuntimeException(authorisedError.message))
+          case errors => Failure(new RuntimeException(s"GraphQL response contained errors: ${errors.map(e => e.message).mkString}"))
+        }
       }
-      case Left(e) => Left(e)
-    }
-    implicit class OptFunction(strOpt: Option[String]) {
-      def toOptEmpty: Option[String] = if(strOpt.getOrElse("").isEmpty) Option.empty else strOpt
-    }
-    result.map(_.map(_.getClientFileMetadata.originalPath.toOptEmpty.toRight("The original path is missing or empty")).flatten)
+    ).flatten
+    )
   }
 
 
-
-  def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3Client): Either[String, String] = {
+  def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3Client): Try[String] = {
     val s3Obj = record.getS3
     val key = s3Obj.getObject.getKey
     val request = GetObjectRequest
@@ -53,13 +60,10 @@ class FileUtils()(implicit val executionContext: ExecutionContext) {
       .bucket(s3Obj.getBucket.getName)
       .key(URLDecoder.decode(key, "utf-8"))
       .build
-    Try{
+    Try {
       s3.getObject(request, Paths.get(path))
       key
-    }.toEither.left.map(e => {
-      e.printStackTrace()
-      e.getMessage
-    })
+    }
   }
 
 }
