@@ -25,11 +25,11 @@ class FileUtils()(implicit val executionContext: ExecutionContext) {
   private def failed(msg: String) = Future.failed(new RuntimeException(msg))
 
   implicit class OptFunction(strOpt: Option[String]) {
-    def failIfPathEmpty(fileId: UUID): Future[String] = if ((strOpt.isDefined && strOpt.get.isEmpty) || strOpt.isEmpty) {
-      failed(s"The original path for fileId $fileId is missing or empty")
-    } else {
-      Future(strOpt.get)
-    }
+    def failIfPathEmpty(fileId: UUID): Future[String] =
+      strOpt match {
+        case Some(path) if path.nonEmpty => Future(path)
+        case _ => failed(s"The original path for fileId $fileId is missing or empty")
+      }
   }
 
   private def pathFromResponse(response: GraphQlResponse[Data], fileId: UUID): Future[String] = response.errors match {
