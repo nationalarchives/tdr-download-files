@@ -10,47 +10,40 @@ import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables, documen
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import sttp.client.{Identity, NothingT, SttpBackend}
-import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
 import uk.gov.nationalarchives.tdr.error.NotAuthorisedError
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
+import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 class FileUtils()(implicit val executionContext: ExecutionContext) {
   val config: Config = ConfigFactory.load
 
   case class DownloadFilesException(msg: String) extends RuntimeException
 
+  private def failed(msg: String) = Future.failed(new RuntimeException(msg))
+
   implicit class OptFunction(strOpt: Option[String]) {
-    def failIfPathEmpty(fileId: UUID): Try[String] = if ((strOpt.isDefined && strOpt.get.isEmpty) || strOpt.isEmpty) {
-      Failure(new RuntimeException(s"The original path for fileId $fileId is missing or empty"))
+    def failIfPathEmpty(fileId: UUID): Future[String] = if ((strOpt.isDefined && strOpt.get.isEmpty) || strOpt.isEmpty) {
+      failed(s"The original path for fileId $fileId is missing or empty")
     } else {
-      Success(strOpt.get)
+      Future(strOpt.get)
     }
   }
 
-  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID)(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[Try[String]] = {
-
-    val queryResult: Future[Try[GraphQlResponse[Data]]] = (for {
-      token <- keycloakUtils.serviceAccountToken(config.getString("auth.client.id"), config.getString("auth.client.secret"))
-      result <- client.getResult(token, document, Option(Variables(fileId)))
-    } yield Success(result)) recover (e => {
-      Failure(e)
-    })
-
-    queryResult.map(_.map(
-      response => {
-        response.errors match {
-          case Nil => response.data.get.getClientFileMetadata.originalPath.failIfPathEmpty(fileId)
-          case List(authorisedError: NotAuthorisedError) => Failure(new RuntimeException(authorisedError.message))
-          case errors => Failure(new RuntimeException(s"GraphQL response contained errors: ${errors.map(e => e.message).mkString}"))
-        }
-      }
-    ).flatten
-    )
+  private def pathFromResponse(response: GraphQlResponse[Data], fileId: UUID): Future[String] = response.errors match {
+    case Nil => response.data.get.getClientFileMetadata.originalPath.failIfPathEmpty(fileId)
+    case List(authorisedError: NotAuthorisedError) => failed(authorisedError.message)
+    case errors => failed(s"GraphQL response contained errors: ${errors.map(e => e.message).mkString}")
   }
 
+  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID)(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[String] =
+    for {
+      token <- keycloakUtils.serviceAccountToken(config.getString("auth.client.id"), config.getString("auth.client.secret"))
+      response <- client.getResult(token, document, Option(Variables(fileId)))
+      filePath <- pathFromResponse(response, fileId)
+    } yield filePath
 
   def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3Client): Try[String] = {
     val s3Obj = record.getS3
@@ -65,7 +58,6 @@ class FileUtils()(implicit val executionContext: ExecutionContext) {
       key
     }
   }
-
 }
 
 object FileUtils {

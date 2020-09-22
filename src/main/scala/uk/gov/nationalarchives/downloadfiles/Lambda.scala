@@ -25,7 +25,7 @@ import io.circe.syntax._
 import io.circe.generic.auto._
 import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class Lambda {
   val config: Config = ConfigFactory.load
@@ -43,23 +43,25 @@ class Lambda {
     val eventsWithErrors = decodeS3EventFromSqs(event)
     val fileUtils = FileUtils()
 
-    val result: List[Future[Try[String]]] = eventsWithErrors.events
+    val result: List[Future[String]] = eventsWithErrors.events
         .flatMap(e => e.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
           val fileId = UUID.fromString(s3KeyArr.last)
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
-          fileUtils.getFilePath(keycloakUtils, client, fileId).map(_.map(originalPath => {
+          fileUtils.getFilePath(keycloakUtils, client, fileId).flatMap(originalPath => {
             val writeDirectory = originalPath.split("/").init.mkString("/")
             s"mkdir -p $efsRootLocation/$consignmentId/$writeDirectory".!!
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
-            fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
+            val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
               sendMessage(DownloadOutput(consignmentId, fileId, originalPath).asJson.noSpaces)
               e.receiptHandle
             })
-          }).flatten)
+            Future.fromTry(s3Response)
+          })
         }))
-    val results: List[Try[String]] = Await.result(Future.sequence(result), 10 seconds)
+
+    val results: List[Try[String]] = Await.result(Future.sequence(result.map(r => r.map(Success(_)).recover(Failure(_)))), 10 seconds)
 
     val (downloadFileFailed: List[Throwable], downloadFileSucceeded) = results.partitionMap(_.toEither)
     val allErrors: List[Throwable] = downloadFileFailed ++ eventsWithErrors.errors.map(_.getCause)
