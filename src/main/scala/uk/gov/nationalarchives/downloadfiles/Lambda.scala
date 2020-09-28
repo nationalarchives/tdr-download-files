@@ -2,7 +2,7 @@ package uk.gov.nationalarchives.downloadfiles
 
 import java.util.UUID
 
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
@@ -18,7 +18,6 @@ import uk.gov.nationalarchives.aws.utils.SQSUtils
 import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
@@ -30,9 +29,6 @@ class Lambda {
   val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(config.getString("sqs.queue.input"), _)
   val sendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.fileformat"), _)
   val logger: Logger = Logger[Lambda]
-
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-  implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
 
   def process(event: SQSEvent, context: Context): List[String] = {
     val efsRootLocation = ConfigFactory.load.getString("efs.root.location")
