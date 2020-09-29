@@ -13,21 +13,21 @@ import scala.util.Try
 
 class LambdaTest extends ExternalServicesTest {
 
-  "The process method" should "put a message in the output queue if the message is successful " in {
+  "The process method" should "put messages in the output queue if the messages are successful " in {
     putFile("testfile")
     new Lambda().process(createEvent("sns_s3_event"), null)
     val msgs = outputQueueHelper.receive
-    msgs.size should equal(1)
+    msgs.size should equal(2)
   }
 
-  "The process method" should "put one message in the output queue, delete the successful message and leave the key error message" in {
+  "The process method" should "put messages in the output queue, delete the successful messages and leave the key error message" in {
     putFile("testfile")
     intercept[RuntimeException] {
       new Lambda().process(createEvent("sns_s3_event", "sns_s3_no_key"), null)
     }
     val outputMessages = outputQueueHelper.receive
     val inputMessages = inputQueueHelper.receive
-    outputMessages.size should equal(1)
+    outputMessages.size should equal(2)
     inputMessages.size should equal(1)
   }
 
@@ -76,7 +76,5 @@ class LambdaTest extends ExternalServicesTest {
     new Lambda().process(createEvent("sns_s3_event"), null)
     val fileAttempt = Try(Source.fromFile("./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586/originalPath"))
     fileAttempt.isSuccess should be(true)
-
   }
-
 }
