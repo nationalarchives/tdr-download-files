@@ -40,17 +40,19 @@ object AWSUtils extends MockitoSugar {
   val account = 1
 
   val inputQueueName = "testqueueinput"
-  val outputQueueName = "testqueueoutput"
+  val avOutputQueueName = "testavqueueoutput"
+  val ffOutputQueueName = "testffqueueoutput"
 
   val api = new SQSService(port, account)
   val inputQueueUrl = s"http://localhost:$port/$account/$inputQueueName"
-  val outputQueueUrl = s"http://localhost:$port/$account/$outputQueueName"
+  val avOutputQueueUrl = s"http://localhost:$port/$account/$avOutputQueueName"
+  val ffOutputQueueUrl = s"http://localhost:$port/$account/$ffOutputQueueName"
 
   val s3Api = S3Mock(port = 8003, dir = "/tmp/s3")
 
-
   val inputQueueHelper: QueueHelper = QueueHelper(inputQueueUrl)
-  val outputQueueHelper: QueueHelper = QueueHelper(outputQueueUrl)
+  val avOutputQueueHelper: QueueHelper = QueueHelper(avOutputQueueUrl)
+  val ffOutputQueueHelper: QueueHelper = QueueHelper(ffOutputQueueUrl)
 
   def createEvent(locations: String*): SQSEvent = {
     val event = new SQSEvent()
@@ -88,5 +90,4 @@ object AWSUtils extends MockitoSugar {
     def delete(msg: Message): DeleteMessageResponse = sqsClient.deleteMessage(DeleteMessageRequest
       .builder.queueUrl(queueUrl).receiptHandle(msg.receiptHandle()).build)
   }
-
 }

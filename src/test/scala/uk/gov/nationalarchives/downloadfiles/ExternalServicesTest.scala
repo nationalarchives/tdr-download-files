@@ -41,7 +41,8 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockAuthServer.start()
     api.start()
     inputQueueHelper.createQueue
-    outputQueueHelper.createQueue
+    avOutputQueueHelper.createQueue
+    ffOutputQueueHelper.createQueue
   }
 
   override def beforeEach(): Unit = {
@@ -61,6 +62,5 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockAuthServer.resetAll()
     wiremockGraphqlServer.resetAll()
     "rm -rf ./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586".!
-
   }
 }
