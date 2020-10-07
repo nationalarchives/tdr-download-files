@@ -30,7 +30,7 @@ object AWSUtils extends MockitoSugar {
 
   def putFile(location: String): PutObjectResponse = {
     val path = new File(getClass.getResource(s"/testfiles/$location").getPath).toPath
-    val putObjectRequest = PutObjectRequest.builder.bucket("testbucket").key("consignmentId/f0a73877-6057-4bbb-a1eb-7c7b73cab586/acea5919-25a3-4c6b-8908-fa47cc77878f").build
+    val putObjectRequest = PutObjectRequest.builder.bucket("testbucket").key("cognitoId/f0a73877-6057-4bbb-a1eb-7c7b73cab586/acea5919-25a3-4c6b-8908-fa47cc77878f").build
     s3Client.putObject(putObjectRequest, path)
   }
 
@@ -40,17 +40,19 @@ object AWSUtils extends MockitoSugar {
   val account = 1
 
   val inputQueueName = "testqueueinput"
-  val outputQueueName = "testqueueoutput"
+  val avOutputQueueName = "testavqueueoutput"
+  val ffOutputQueueName = "testffqueueoutput"
 
   val api = new SQSService(port, account)
   val inputQueueUrl = s"http://localhost:$port/$account/$inputQueueName"
-  val outputQueueUrl = s"http://localhost:$port/$account/$outputQueueName"
+  val avOutputQueueUrl = s"http://localhost:$port/$account/$avOutputQueueName"
+  val ffOutputQueueUrl = s"http://localhost:$port/$account/$ffOutputQueueName"
 
   val s3Api = S3Mock(port = 8003, dir = "/tmp/s3")
 
-
   val inputQueueHelper: QueueHelper = QueueHelper(inputQueueUrl)
-  val outputQueueHelper: QueueHelper = QueueHelper(outputQueueUrl)
+  val avOutputQueueHelper: QueueHelper = QueueHelper(avOutputQueueUrl)
+  val ffOutputQueueHelper: QueueHelper = QueueHelper(ffOutputQueueUrl)
 
   def createEvent(locations: String*): SQSEvent = {
     val event = new SQSEvent()
@@ -88,5 +90,4 @@ object AWSUtils extends MockitoSugar {
     def delete(msg: Message): DeleteMessageResponse = sqsClient.deleteMessage(DeleteMessageRequest
       .builder.queueUrl(queueUrl).receiptHandle(msg.receiptHandle()).build)
   }
-
 }

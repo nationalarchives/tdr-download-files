@@ -31,7 +31,8 @@ class Lambda {
   val config: Config = ConfigFactory.load
   val sqsUtils: SQSUtils = SQSUtils(sqs)
   val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(config.getString("sqs.queue.input"), _)
-  val sendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.fileformat"), _)
+  val fileFormatSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.fileformat"), _)
+  val antivirusSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.antivirus"), _)
   val logger: Logger = Logger[Lambda]
 
   def process(event: SQSEvent, context: Context): List[String] = {
@@ -47,6 +48,7 @@ class Lambda {
         .flatMap(e => e.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
+          val cognitoId = s3KeyArr.head
           val fileId = UUID.fromString(s3KeyArr.last)
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
           fileUtils.getFilePath(keycloakUtils, client, fileId).flatMap(originalPath => {
@@ -54,7 +56,8 @@ class Lambda {
             s"mkdir -p $efsRootLocation/$consignmentId/$writeDirectory".!!
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
-              sendMessage(DownloadOutput(consignmentId, fileId, originalPath).asJson.noSpaces)
+              fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
+              antivirusSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
               e.receiptHandle
             })
             Future.fromTry(s3Response)
@@ -72,11 +75,9 @@ class Lambda {
     } else {
       downloadFileSucceeded
     }
-
-
   }
 }
 
 object Lambda {
-  case class DownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String)
+  case class DownloadOutput(cognitoId: String, consignmentId: UUID, fileId: UUID, originalPath: String)
 }

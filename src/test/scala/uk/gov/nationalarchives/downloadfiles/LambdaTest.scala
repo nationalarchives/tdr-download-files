@@ -13,32 +13,40 @@ import scala.util.Try
 
 class LambdaTest extends ExternalServicesTest {
 
-  "The process method" should "put a message in the output queue if the message is successful " in {
+  "The process method" should "put messages in the output queues if the messages are successful " in {
     putFile("testfile")
     new Lambda().process(createEvent("sns_s3_event"), null)
-    val msgs = outputQueueHelper.receive
-    msgs.size should equal(1)
+    val avMsgs = avOutputQueueHelper.receive
+    val ffMsgs = ffOutputQueueHelper.receive
+
+    avMsgs.size should equal(1)
+    ffMsgs.size should equal(1)
   }
 
-  "The process method" should "put one message in the output queue, delete the successful message and leave the key error message" in {
+  "The process method" should "put messages in the output queues, delete the successful messages and leave the key error message" in {
     putFile("testfile")
     intercept[RuntimeException] {
       new Lambda().process(createEvent("sns_s3_event", "sns_s3_no_key"), null)
     }
-    val outputMessages = outputQueueHelper.receive
+    val avMsgs = avOutputQueueHelper.receive
+    val ffMsgs = ffOutputQueueHelper.receive
     val inputMessages = inputQueueHelper.receive
-    outputMessages.size should equal(1)
+
+    avMsgs.size should equal(1)
+    ffMsgs.size should equal(1)
     inputMessages.size should equal(1)
   }
-
 
   "The process method" should "leave the queues unchanged if there are no successful messages" in {
     intercept[RuntimeException] {
       new Lambda().process(createEvent("sns_s3_no_key"), null)
     }
-    val outputMessages = outputQueueHelper.receive
+    val avMsgs = avOutputQueueHelper.receive
+    val ffMsgs = ffOutputQueueHelper.receive
     val inputMessages = inputQueueHelper.receive
-    outputMessages.size should equal(0)
+
+    avMsgs.size should equal(0)
+    ffMsgs.size should equal(0)
     inputMessages.size should equal(1)
   }
 
@@ -58,17 +66,23 @@ class LambdaTest extends ExternalServicesTest {
 
   }
 
-  "The process method" should "send the correct output to the queue" in {
+  "The process method" should "send the correct output to the queues" in {
     putFile("testfile")
     new Lambda().process(createEvent("sns_s3_event"), null)
-    val msgs = outputQueueHelper.receive
-    val output: DownloadOutput = decode[DownloadOutput](msgs(0).body) match {
+
+    val avMsgs = avOutputQueueHelper.receive
+    val ffMsgs = ffOutputQueueHelper.receive
+    val avOutput: DownloadOutput = decode[DownloadOutput](avMsgs(0).body) match {
       case Right(metadata) => metadata
       case Left(error) => throw error
     }
-    output.consignmentId should equal(UUID.fromString("f0a73877-6057-4bbb-a1eb-7c7b73cab586"))
-    output.fileId should equal(UUID.fromString("acea5919-25a3-4c6b-8908-fa47cc77878f"))
-    output.originalPath should equal("originalPath")
+    val ffOutput: DownloadOutput = decode[DownloadOutput](ffMsgs(0).body()) match {
+      case Right(metadata) => metadata
+      case Left(error) => throw error
+    }
+
+    checkOutput(avOutput)
+    checkOutput(ffOutput)
   }
 
   "The process method" should "write the file to the correct path" in {
@@ -76,7 +90,11 @@ class LambdaTest extends ExternalServicesTest {
     new Lambda().process(createEvent("sns_s3_event"), null)
     val fileAttempt = Try(Source.fromFile("./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586/originalPath"))
     fileAttempt.isSuccess should be(true)
-
   }
 
+  private def checkOutput(output: DownloadOutput): Unit = {
+    output.consignmentId should equal(UUID.fromString("f0a73877-6057-4bbb-a1eb-7c7b73cab586"))
+    output.fileId should equal(UUID.fromString("acea5919-25a3-4c6b-8908-fa47cc77878f"))
+    output.originalPath should equal("originalPath")
+  }
 }
