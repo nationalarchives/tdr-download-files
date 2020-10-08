@@ -53,7 +53,7 @@ class Lambda {
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
           fileUtils.getFilePath(keycloakUtils, client, fileId).flatMap(originalPath => {
             val writeDirectory = originalPath.split("/").init.mkString("/")
-            s"mkdir -p $efsRootLocation/$consignmentId/$writeDirectory".!!
+            s"""mkdir -p "$efsRootLocation/$consignmentId/$writeDirectory" """.!!
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
               fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
