@@ -1,0 +1,7 @@
+{
+  "data": {
+    "getClientFileMetadata": {
+      "originalPath": "a nested/path with/spaces"
+    }
+  }
+}
