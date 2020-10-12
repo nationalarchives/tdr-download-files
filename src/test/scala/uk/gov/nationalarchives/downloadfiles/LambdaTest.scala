@@ -18,9 +18,11 @@ class LambdaTest extends ExternalServicesTest {
     new Lambda().process(createEvent("sns_s3_event"), null)
     val avMsgs = avOutputQueueHelper.receive
     val ffMsgs = ffOutputQueueHelper.receive
+    val checksumMsgs = checksumOutputQueueHelper.receive
 
     avMsgs.size should equal(1)
     ffMsgs.size should equal(1)
+    checksumMsgs.size should equal(1)
   }
 
   "The process method" should "put messages in the output queues, delete the successful messages and leave the key error message" in {
@@ -30,10 +32,12 @@ class LambdaTest extends ExternalServicesTest {
     }
     val avMsgs = avOutputQueueHelper.receive
     val ffMsgs = ffOutputQueueHelper.receive
+    val checksumMsgs = checksumOutputQueueHelper.receive
     val inputMessages = inputQueueHelper.receive
 
     avMsgs.size should equal(1)
     ffMsgs.size should equal(1)
+    checksumMsgs.size should equal(1)
     inputMessages.size should equal(1)
   }
 
@@ -43,10 +47,12 @@ class LambdaTest extends ExternalServicesTest {
     }
     val avMsgs = avOutputQueueHelper.receive
     val ffMsgs = ffOutputQueueHelper.receive
+    val checksumMsgs = checksumOutputQueueHelper.receive
     val inputMessages = inputQueueHelper.receive
 
     avMsgs.size should equal(0)
     ffMsgs.size should equal(0)
+    checksumMsgs.size should equal(0)
     inputMessages.size should equal(1)
   }
 
@@ -54,7 +60,7 @@ class LambdaTest extends ExternalServicesTest {
     putFile("testfile")
     val event = createEvent("sns_s3_event")
     val response = new Lambda().process(event, null)
-    response(0) should equal(receiptHandle(event.getRecords.get(0).getBody))
+    response.head should equal(receiptHandle(event.getRecords.get(0).getBody))
   }
 
   "The process method" should "throw an exception for a no key error" in {
@@ -72,17 +78,24 @@ class LambdaTest extends ExternalServicesTest {
 
     val avMsgs = avOutputQueueHelper.receive
     val ffMsgs = ffOutputQueueHelper.receive
-    val avOutput: DownloadOutput = decode[DownloadOutput](avMsgs(0).body) match {
+    val checksumMsgs = checksumOutputQueueHelper.receive
+    val avOutput: DownloadOutput = decode[DownloadOutput](avMsgs.head.body) match {
       case Right(metadata) => metadata
       case Left(error) => throw error
     }
-    val ffOutput: DownloadOutput = decode[DownloadOutput](ffMsgs(0).body()) match {
+    val ffOutput: DownloadOutput = decode[DownloadOutput](ffMsgs.head.body()) match {
+      case Right(metadata) => metadata
+      case Left(error) => throw error
+    }
+
+    val checksumOutput: DownloadOutput = decode[DownloadOutput](checksumMsgs.head.body()) match {
       case Right(metadata) => metadata
       case Left(error) => throw error
     }
 
     checkOutput(avOutput)
     checkOutput(ffOutput)
+    checkOutput(checksumOutput)
   }
 
   "The process method" should "write the file to the correct path" in {

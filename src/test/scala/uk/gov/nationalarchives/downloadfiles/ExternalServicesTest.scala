@@ -46,6 +46,7 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     inputQueueHelper.createQueue
     avOutputQueueHelper.createQueue
     ffOutputQueueHelper.createQueue
+    checksumOutputQueueHelper.createQueue
   }
 
   override def beforeEach(): Unit = {
