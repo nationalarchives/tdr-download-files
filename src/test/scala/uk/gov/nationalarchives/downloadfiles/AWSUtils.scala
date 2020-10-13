@@ -42,17 +42,20 @@ object AWSUtils extends MockitoSugar {
   val inputQueueName = "testqueueinput"
   val avOutputQueueName = "testavqueueoutput"
   val ffOutputQueueName = "testffqueueoutput"
+  val checksumOutputQueueName = "testchecksumqueueoutput"
 
   val api = new SQSService(port, account)
   val inputQueueUrl = s"http://localhost:$port/$account/$inputQueueName"
   val avOutputQueueUrl = s"http://localhost:$port/$account/$avOutputQueueName"
   val ffOutputQueueUrl = s"http://localhost:$port/$account/$ffOutputQueueName"
+  val checksumOutputQueueUrl = s"http://localhost:$port/$account/$checksumOutputQueueName"
 
   val s3Api = S3Mock(port = 8003, dir = "/tmp/s3")
 
   val inputQueueHelper: QueueHelper = QueueHelper(inputQueueUrl)
   val avOutputQueueHelper: QueueHelper = QueueHelper(avOutputQueueUrl)
   val ffOutputQueueHelper: QueueHelper = QueueHelper(ffOutputQueueUrl)
+  val checksumOutputQueueHelper: QueueHelper = QueueHelper(checksumOutputQueueUrl)
 
   def createEvent(locations: String*): SQSEvent = {
     val event = new SQSEvent()

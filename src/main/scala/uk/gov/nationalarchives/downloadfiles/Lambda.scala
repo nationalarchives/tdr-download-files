@@ -33,6 +33,7 @@ class Lambda {
   val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(config.getString("sqs.queue.input"), _)
   val fileFormatSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.fileformat"), _)
   val antivirusSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.antivirus"), _)
+  val checksumSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.checksum"), _)
   val logger: Logger = Logger[Lambda]
 
   def process(event: SQSEvent, context: Context): List[String] = {
@@ -58,6 +59,7 @@ class Lambda {
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
               fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
               antivirusSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
+              checksumSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
               e.receiptHandle
             })
             Future.fromTry(s3Response)
