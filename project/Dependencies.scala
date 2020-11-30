@@ -6,7 +6,7 @@ object Dependencies {
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.13.0"
   lazy val circeParser = "io.circe" %% "circe-parser" % "0.13.0"
   lazy val lambdaJavaCore = "com.amazonaws" % "aws-lambda-java-core" % "1.2.1"
-  lazy val lambdaJavaEvents = "com.amazonaws" % "aws-lambda-java-events" % "3.1.0"
+  lazy val lambdaJavaEvents = "com.amazonaws" % "aws-lambda-java-events" % "3.1.1"
   lazy val awsUtils =  "uk.gov.nationalarchives.aws.utils" %% "tdr-aws-utils" % "0.1.3"
   lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.19"
   lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.60"
