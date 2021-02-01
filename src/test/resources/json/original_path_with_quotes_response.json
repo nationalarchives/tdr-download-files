@@ -1,7 +1,7 @@
 {
   "data": {
     "getClientFileMetadata": {
-      "originalPath": "a\"pathwith/quotes\"in"
+      "originalPath": "a\"path'with/quo'tes\"in"
     }
   }
 }

@@ -119,7 +119,7 @@ class LambdaTest extends ExternalServicesTest {
     graphqlOriginalPathWithQuotes
     putFile("testfile")
     new Lambda().process(createEvent("sns_s3_event"), null)
-    val fileAttempt = Try(Source.fromFile("./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586/a\"pathwith/quotes\"in"))
+    val fileAttempt = Try(Source.fromFile("./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586/a\"path'with/quo'tes\"in"))
     fileAttempt.isSuccess should be(true)
   }
 
