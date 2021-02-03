@@ -1,5 +1,6 @@
 package uk.gov.nationalarchives.downloadfiles
 
+import java.io.File
 import java.util.UUID
 
 import com.amazonaws.services.lambda.runtime.Context
@@ -53,8 +54,9 @@ class Lambda {
           val fileId = UUID.fromString(s3KeyArr.last)
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
           fileUtils.getFilePath(keycloakUtils, client, fileId).flatMap(originalPath => {
+            val prefix = s"$efsRootLocation/$consignmentId"
             val writeDirectory = originalPath.split("/").init.mkString("/")
-            s"""mkdir -p "$efsRootLocation/$consignmentId/$writeDirectory" """.!!
+            new File(s"$prefix/$writeDirectory").mkdirs()
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
               fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)

@@ -35,6 +35,9 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
   def graphqlOriginalPathWithSpace: StubMapping = wiremockGraphqlServer.stubFor(post(urlEqualTo(graphQlPath))
     .willReturn(okJson(fromResource(s"json/original_path_with_space_response.json").mkString)))
 
+  def graphqlOriginalPathWithQuotes: StubMapping = wiremockGraphqlServer.stubFor(post(urlEqualTo(graphQlPath))
+    .willReturn(okJson(fromResource(s"json/original_path_with_quotes_response.json").mkString)))
+
   def authOk: StubMapping = wiremockAuthServer.stubFor(post(urlEqualTo(authPath))
     .willReturn(okJson(fromResource(s"json/access_token.json").mkString)))
 
