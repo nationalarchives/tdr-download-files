@@ -8,11 +8,14 @@ import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables}
+import io.circe.generic.auto._
+import io.circe.syntax._
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
 import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
 import uk.gov.nationalarchives.aws.utils.Clients.{s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.SQSUtils
+import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
 
@@ -21,11 +24,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import scala.sys.process._
-import io.circe.syntax._
-import io.circe.generic.auto._
-import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
-
 import scala.util.{Failure, Success, Try}
 
 class Lambda {
@@ -68,7 +66,11 @@ class Lambda {
           })
         }))
 
-    val results: List[Try[String]] = Await.result(Future.sequence(result.map(r => r.map(Success(_)).recover(Failure(_)))), 10 seconds)
+    val results: List[Try[String]] = Await.result(
+      Future.sequence(result.map(r => r.map(Success(_)).recover(Failure(_)))),
+      // Allow enough time to download large files, but time out before the Lambda reaches it own timeout
+      2.5 minutes
+    )
 
     val (downloadFileFailed: List[Throwable], downloadFileSucceeded) = results.partitionMap(_.toEither)
     val allErrors: List[Throwable] = downloadFileFailed ++ eventsWithErrors.errors.map(_.getCause)
