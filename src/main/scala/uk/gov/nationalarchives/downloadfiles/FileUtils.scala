@@ -18,8 +18,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 class FileUtils()(implicit val executionContext: ExecutionContext) {
-  val config: Config = ConfigFactory.load
-
   case class DownloadFilesException(msg: String) extends RuntimeException
 
   private def failed(msg: String) = Future.failed(new RuntimeException(msg))
@@ -38,9 +36,9 @@ class FileUtils()(implicit val executionContext: ExecutionContext) {
     case errors => failed(s"GraphQL response contained errors: ${errors.map(e => e.message).mkString}")
   }
 
-  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID)(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[String] =
+  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID, lambdaConfig: Map[String, String])(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[String] =
     for {
-      token <- keycloakUtils.serviceAccountToken(config.getString("auth.client.id"), config.getString("auth.client.secret"))
+      token <- keycloakUtils.serviceAccountToken(lambdaConfig("auth.client.id"), lambdaConfig("auth.client.secret"))
       response <- client.getResult(token, document, Option(Variables(fileId)))
       filePath <- pathFromResponse(response, fileId)
     } yield filePath

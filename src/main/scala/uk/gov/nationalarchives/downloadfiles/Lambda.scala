@@ -12,9 +12,10 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
 import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
-import uk.gov.nationalarchives.aws.utils.Clients.{s3, sqs}
+import uk.gov.nationalarchives.aws.utils.Clients.{s3, sqs, kms}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.SQSUtils
+import uk.gov.nationalarchives.aws.utils.KMSUtils
 import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
@@ -27,31 +28,45 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class Lambda {
-  val config: Config = ConfigFactory.load
+  val kmsUtils: KMSUtils = KMSUtils(kms, Map("LambdaFunctionName" -> ConfigFactory.load.getString("function.name")))
+  val lambdaConfig: Map[String, String] = kmsUtils.decryptValuesFromConfig(
+    List(
+      "sqs.queue.input",
+      "sqs.queue.fileformat",
+      "sqs.queue.antivirus",
+      "sqs.queue.checksum",
+      "efs.root.location",
+      "url.auth",
+      "url.api",
+      "auth.client.id",
+      "auth.client.secret"
+    ))
   val sqsUtils: SQSUtils = SQSUtils(sqs)
-  val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(config.getString("sqs.queue.input"), _)
-  val fileFormatSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.fileformat"), _)
-  val antivirusSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.antivirus"), _)
-  val checksumSendMessage: String => SendMessageResponse = sqsUtils.send(config.getString("sqs.queue.checksum"), _)
+  val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(lambdaConfig("sqs.queue.input"), _)
+  val fileFormatSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.fileformat"), _)
+  val antivirusSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.antivirus"), _)
+  val checksumSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.checksum"), _)
   val logger: Logger = Logger[Lambda]
 
+
   def process(event: SQSEvent, context: Context): List[String] = {
-    val efsRootLocation = ConfigFactory.load.getString("efs.root.location")
-    val keycloakUtils = KeycloakUtils(config.getString("url.auth"))
-    val client: GraphQLClient[Data, Variables] = new GraphQLClient[Data, Variables](config.getString("url.api"))
+    val efsRootLocation = lambdaConfig("efs.root.location")
+    val keycloakUtils = KeycloakUtils(lambdaConfig("url.auth"))
+    val client: GraphQLClient[Data, Variables] = new GraphQLClient[Data, Variables](lambdaConfig("url.api"))
     implicit val backend: SttpBackend[Identity, Nothing, NothingT] = HttpURLConnectionBackend()
 
     val eventsWithErrors = decodeS3EventFromSqs(event)
     val fileUtils = FileUtils()
 
     val result: List[Future[String]] = eventsWithErrors.events
-        .flatMap(e => e.event.getRecords.asScala
+      .flatMap(e => e.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
           val cognitoId = s3KeyArr.head
           val fileId = UUID.fromString(s3KeyArr.last)
+          logger.info(s"Downloading files for file id $fileId")
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
-          fileUtils.getFilePath(keycloakUtils, client, fileId).flatMap(originalPath => {
+          fileUtils.getFilePath(keycloakUtils, client, fileId, lambdaConfig).flatMap(originalPath => {
             val prefix = s"$efsRootLocation/$consignmentId"
             val writeDirectory = originalPath.split("/").init.mkString("/")
             new File(s"$prefix/$writeDirectory").mkdirs()
@@ -85,5 +100,7 @@ class Lambda {
 }
 
 object Lambda {
+
   case class DownloadOutput(cognitoId: String, consignmentId: UUID, fileId: UUID, originalPath: String)
+
 }
