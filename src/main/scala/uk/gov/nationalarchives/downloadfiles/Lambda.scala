@@ -28,7 +28,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class Lambda {
-  val kmsUtils: KMSUtils = KMSUtils(kms, Map("LambdaFunctionName" -> ConfigFactory.load.getString("function.name")))
+  val config: Config = ConfigFactory.load
+  val kmsUtils: KMSUtils = KMSUtils(kms(config.getString("kms.endpoint")), Map("LambdaFunctionName" -> config.getString("function.name")))
   val lambdaConfig: Map[String, String] = kmsUtils.decryptValuesFromConfig(
     List(
       "sqs.queue.input",
