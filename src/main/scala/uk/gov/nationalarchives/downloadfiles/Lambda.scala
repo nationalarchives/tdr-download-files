@@ -101,7 +101,5 @@ class Lambda {
 }
 
 object Lambda {
-
   case class DownloadOutput(cognitoId: String, consignmentId: UUID, fileId: UUID, originalPath: String)
-
 }
