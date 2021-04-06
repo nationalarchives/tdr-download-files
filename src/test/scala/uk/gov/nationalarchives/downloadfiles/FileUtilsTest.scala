@@ -30,6 +30,8 @@ import org.scalatest.TryValues._
 class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
   implicit val backend: SttpBackend[Identity, Nothing, NothingT] = HttpURLConnectionBackend()
 
+  val lambdaConfig = Map("auth.client.id" -> "client_id", "auth.client.secret" -> "secret")
+
   "The getFilePath method" should "request a service account token" in {
     val client = mock[GraphQLClient[Data, Variables]]
     val keycloakUtils = mock[KeycloakUtils]
@@ -40,11 +42,11 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("originalPath")))), List())))
 
     val fileUtils = FileUtils()
-    fileUtils.getFilePath(keycloakUtils, client, UUID.randomUUID()).futureValue
+    fileUtils.getFilePath(keycloakUtils, client, UUID.randomUUID(), lambdaConfig).futureValue
 
     val configFactory = ConfigFactory.load
-    val expectedId = configFactory.getString("auth.client.id")
-    val expectedSecret = configFactory.getString("auth.client.secret")
+    val expectedId = "client_id"
+    val expectedSecret = "secret"
 
     verify(keycloakUtils).serviceAccountToken(expectedId, expectedSecret)
   }
@@ -62,7 +64,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("originalPath")))), List())))
 
     val fileUtils = FileUtils()
-    fileUtils.getFilePath(keycloakUtils, client, uuid).futureValue
+    fileUtils.getFilePath(keycloakUtils, client, uuid, lambdaConfig).futureValue
 
     verify(client).getResult(new BearerAccessToken("token"), document, Some(variables))
   }
@@ -78,7 +80,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("")))), List())))
 
     val fileUtils = FileUtils()
-    val result: Throwable = fileUtils.getFilePath(keycloakUtils, client, uuid).failed.futureValue
+    val result: Throwable = fileUtils.getFilePath(keycloakUtils, client, uuid, lambdaConfig).failed.futureValue
 
     result.getMessage should equal(s"The original path for fileId $uuid is missing or empty")
 
@@ -95,7 +97,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("originalPath")))), List())))
 
     val fileUtils = FileUtils()
-    val result: String = fileUtils.getFilePath(keycloakUtils, client, uuid).futureValue
+    val result: String = fileUtils.getFilePath(keycloakUtils, client, uuid, lambdaConfig).futureValue
     result should equal("originalPath")
 
   }
@@ -110,7 +112,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
       .thenReturn(Future.successful(GraphQlResponse(Some(Data(GetClientFileMetadata(Some("originalPath")))), List())))
 
     val exception = intercept[HttpError] {
-      FileUtils().getFilePath(keycloakUtils, client, UUID.randomUUID())
+      FileUtils().getFilePath(keycloakUtils, client, UUID.randomUUID(), lambdaConfig)
     }
     exception.body should equal("An error occurred contacting the auth server")
   }
@@ -128,7 +130,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
       .thenReturn(Future.successful(new BearerAccessToken("token")))
     when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[Variables]])(any[SttpBackend[Identity, Nothing, NothingT]], any[ClassTag[Identity[_]]])).thenThrow(new HttpException(response))
 
-    val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, uuid).failed.futureValue
+    val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, uuid, lambdaConfig).failed.futureValue
     res.getMessage shouldEqual "Unexpected response from GraphQL API: Response(Left(Graphql error),503,,List(),List())"
   }
 
@@ -146,7 +148,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[Variables]])(any[SttpBackend[Identity, Nothing, NothingT]], any[ClassTag[Identity[_]]]))
       .thenReturn(Future.successful(graphqlResponse))
 
-    val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, uuid).failed.futureValue
+    val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, uuid, lambdaConfig).failed.futureValue
 
     res.getMessage shouldEqual "Not authorised message"
   }
@@ -163,7 +165,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[Variables]])(any[SttpBackend[Identity, Nothing, NothingT]], any[ClassTag[Identity[_]]]))
       .thenReturn(Future.successful(graphqlResponse))
 
-    val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, UUID.randomUUID()).failed.futureValue
+    val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, UUID.randomUUID(), lambdaConfig).failed.futureValue
     res.getMessage shouldEqual "GraphQL response contained errors: General error"
   }
 
