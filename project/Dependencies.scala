@@ -13,6 +13,7 @@ object Dependencies {
   lazy val graphqlClient = "uk.gov.nationalarchives" %% "tdr-graphql-client" % "0.0.15"
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
   lazy val logback = "ch.qos.logback" % "logback-classic" % "1.2.3"
+  lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "6.6"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "1.14.1"
   lazy val s3Mock = "io.findify" %% "s3mock" % "0.2.6"
   lazy val sqsMock = "io.findify" %% "sqsmock" % "0.3.4"
