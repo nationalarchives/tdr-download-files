@@ -10,12 +10,12 @@ import com.typesafe.scalalogging.Logger
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables}
 import io.circe.generic.auto._
 import io.circe.syntax._
+import net.logstash.logback.argument.StructuredArguments.value
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
 import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
-import uk.gov.nationalarchives.aws.utils.Clients.{s3, sqs, kms}
+import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
-import uk.gov.nationalarchives.aws.utils.SQSUtils
-import uk.gov.nationalarchives.aws.utils.KMSUtils
+import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
 import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
@@ -65,8 +65,12 @@ class Lambda {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
           val cognitoId = s3KeyArr.head
           val fileId = UUID.fromString(s3KeyArr.last)
-          logger.info(s"Downloading files for file id $fileId")
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
+          logger.info(
+            "Downloading files for file ID '{}' and consignment ID '{}'",
+            value("fileId", fileId),
+            value("consignmentId", consignmentId)
+          )
           fileUtils.getFilePath(keycloakUtils, client, fileId, lambdaConfig).flatMap(originalPath => {
             val prefix = s"$efsRootLocation/$consignmentId"
             val writeDirectory = originalPath.split("/").init.mkString("/")
