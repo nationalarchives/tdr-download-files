@@ -28,7 +28,7 @@ class LambdaTest extends ExternalServicesTest {
   "The process method" should "put messages in the output queues, delete the successful messages and leave the key error message" in {
     putFile("testfile")
     intercept[RuntimeException] {
-      new Lambda().process(createEvent("sns_s3_event", "sns_s3_no_key"), null)
+      new Lambda().process(createEvent("sns_empty_message", "sns_s3_event", "sns_s3_no_key"), null)
     }
     val avMsgs = avOutputQueueHelper.receive
     val ffMsgs = ffOutputQueueHelper.receive
@@ -38,12 +38,12 @@ class LambdaTest extends ExternalServicesTest {
     avMsgs.size should equal(1)
     ffMsgs.size should equal(1)
     checksumMsgs.size should equal(1)
-    inputMessages.size should equal(1)
+    inputMessages.size should equal(2)
   }
 
   "The process method" should "leave the queues unchanged if there are no successful messages" in {
     intercept[RuntimeException] {
-      new Lambda().process(createEvent("sns_s3_no_key"), null)
+      new Lambda().process(createEvent("sns_s3_no_key", "sns_empty_message"), null)
     }
     val avMsgs = avOutputQueueHelper.receive
     val ffMsgs = ffOutputQueueHelper.receive
@@ -53,7 +53,7 @@ class LambdaTest extends ExternalServicesTest {
     avMsgs.size should equal(0)
     ffMsgs.size should equal(0)
     checksumMsgs.size should equal(0)
-    inputMessages.size should equal(1)
+    inputMessages.size should equal(2)
   }
 
   "The process method" should "return the receipt handle for a successful message" in {
@@ -69,7 +69,14 @@ class LambdaTest extends ExternalServicesTest {
       new Lambda().process(event, null)
     }
     exception.getMessage should equal("software.amazon.awssdk.services.s3.model.NoSuchKeyException: The resource you requested does not exist (Service: S3, Status Code: 404, Request ID: null, Extended Request ID: null)")
+  }
 
+  "The process method" should "throw an exception if a message is not a valid S3 event" in {
+    val event = createEvent("sns_empty_message")
+    val exception = intercept[RuntimeException] {
+      new Lambda().process(event, null)
+    }
+    exception.getMessage should include("Attempt to decode value")
   }
 
   "The process method" should "send the correct output to the queues" in {

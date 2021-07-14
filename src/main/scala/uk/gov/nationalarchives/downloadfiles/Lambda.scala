@@ -93,7 +93,7 @@ class Lambda {
     )
 
     val (downloadFileFailed: List[Throwable], downloadFileSucceeded) = results.partitionMap(_.toEither)
-    val allErrors: List[Throwable] = downloadFileFailed ++ eventsWithErrors.errors.map(_.getCause)
+    val allErrors: List[Throwable] = downloadFileFailed ++ eventsWithErrors.errors
     if (allErrors.nonEmpty) {
       allErrors.foreach(e => logger.error(e.getMessage, e))
       downloadFileSucceeded.map(deleteMessage)
