@@ -1,6 +1,14 @@
 ## Download Files From S3
 
-This is a lambda which takes the messages from the S3 uploads and downloads them to the EFS volume, where they can be reused by other processes.
+This is a lambda which takes the messages from the S3 uploads and downloads them to the EFS volume. It then sends
+messages to each of the file check queues. Those messages trigger the file check Lambdas, which use the files downloaded
+to EFS by this Lambda.
+
+See the [architecture diagram] and [file check architecture decision record][adr] for more context about how this Lambda
+fits into the file check workflow.
+
+[architecture diagram]: https://github.com/nationalarchives/tdr-dev-documentation/blob/master/beta-architecture/beta-architecture.md
+[adr]: https://github.com/nationalarchives/tdr-dev-documentation/blob/master/architecture-decision-records/0013-file-check-queues-and-lambdas.md
 
 ### Adding new environment variables to the tests
 The environment variables in the deployed lambda are encrypted using KMS and then base64 encoded. These are then decoded in the lambda. Because of this, any variables in `src/test/resources/application.conf` which come from environment variables in `src/main/resources/application.conf` need to be stored base64 encoded. There are comments next to each variable to say what the base64 string decodes to. If you want to add a new variable you can run `echo -n "value of variable" | base64 -w 0` and paste the output into the test application.conf
