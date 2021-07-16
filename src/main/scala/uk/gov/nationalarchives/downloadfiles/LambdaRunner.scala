@@ -17,10 +17,11 @@ object LambdaRunner extends App {
   val cognitoUserId: String = "eu-west-2:56f64881-67ca-4657-87dc-3065a6ce3b20"
   val bucketName: String = "tdr-upload-files-dirty-intg"
   val downloadPath = ConfigFactory.load.getString("efs.root.location")
+  val receiptHandle = "fake-receipt-handle"
 
   wipeConsignmentDirectory(downloadPath, consignmentId)
 
-  val fakeSqsEvent = buildSqsEvent(fileId, consignmentId, cognitoUserId, bucketName)
+  val fakeSqsEvent: SQSEvent = buildSqsEvent(fileId, consignmentId, cognitoUserId, bucketName, receiptHandle)
 
   // Context is not used, so it's safe to pass null
   val emptyLambdaContext = null
@@ -33,12 +34,14 @@ object LambdaRunner extends App {
     consignmentDirectory.deleteRecursively()
   }
 
-  private def buildSqsEvent(fileId: UUID, consignmentId: UUID, cognitoUserId: String, bucketName: String) = {
+  private def buildSqsEvent(fileId: UUID, consignmentId: UUID, cognitoUserId: String,
+                            bucketName: String, receiptHandle: String) = {
     val body: String = buildMessageBody(fileId, consignmentId, cognitoUserId, bucketName)
     val snsMessage: String = buildSnsMessage(body)
 
     val sqsMessage = new SQSMessage
     sqsMessage.setBody(snsMessage)
+    sqsMessage.setReceiptHandle(receiptHandle)
 
     val fakeSqsEvent = new SQSEvent
     fakeSqsEvent.setRecords(List(sqsMessage).asJava)
