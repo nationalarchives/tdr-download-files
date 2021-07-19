@@ -1,5 +1,8 @@
 package uk.gov.nationalarchives.downloadfiles
 
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
+
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.{okJson, post, urlEqualTo}
@@ -16,8 +19,6 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import uk.gov.nationalarchives.downloadfiles.AWSUtils._
 
-import java.nio.ByteBuffer
-import java.nio.charset.Charset
 import scala.concurrent.ExecutionContext
 import scala.io.Source.fromResource
 import scala.sys.process._
@@ -72,11 +73,6 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockGraphqlServer.start()
     wiremockAuthServer.start()
     wiremockKmsEndpoint.start()
-    api.start()
-    inputQueueHelper.createQueue
-    avOutputQueueHelper.createQueue
-    ffOutputQueueHelper.createQueue
-    checksumOutputQueueHelper.createQueue
   }
 
   override def beforeEach(): Unit = {
@@ -84,13 +80,16 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     graphqlOriginalPath
     authOk
     createBucket
+    inputQueueHelper.createQueue
+    avOutputQueueHelper.createQueue
+    ffOutputQueueHelper.createQueue
+    checksumOutputQueueHelper.createQueue
   }
 
   override def afterAll(): Unit = {
     wiremockGraphqlServer.stop()
     wiremockAuthServer.stop()
     wiremockKmsEndpoint.stop()
-    api.shutdown()
   }
 
   override def afterEach(): Unit = {
@@ -99,5 +98,9 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockGraphqlServer.resetAll()
     wiremockKmsEndpoint.resetAll()
     "rm -rf ./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586".!
+    inputQueueHelper.deleteQueue
+    avOutputQueueHelper.deleteQueue
+    ffOutputQueueHelper.deleteQueue
+    checksumOutputQueueHelper.deleteQueue
   }
 }

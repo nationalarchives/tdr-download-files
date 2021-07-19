@@ -2,12 +2,11 @@ package uk.gov.nationalarchives.downloadfiles
 
 import java.io.File
 import java.net.URI
-import java.util.Base64
 
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.amazonaws.services.lambda.runtime.events.SQSEvent.SQSMessage
 import io.findify.s3mock.S3Mock
-import io.findify.sqsmock.SQSService
+import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import org.mockito.MockitoSugar
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
@@ -34,21 +33,18 @@ object AWSUtils extends MockitoSugar {
     s3Client.putObject(putObjectRequest, path)
   }
 
-  def receiptHandle(body: String): String = Base64.getEncoder.encodeToString(body.getBytes("UTF-8"))
-
   val port = 8001
-  val account = 1
 
   val inputQueueName = "testqueueinput"
   val avOutputQueueName = "testavqueueoutput"
   val ffOutputQueueName = "testffqueueoutput"
   val checksumOutputQueueName = "testchecksumqueueoutput"
 
-  val api = new SQSService(port, account)
-  val inputQueueUrl = s"http://localhost:$port/$account/$inputQueueName"
-  val avOutputQueueUrl = s"http://localhost:$port/$account/$avOutputQueueName"
-  val ffOutputQueueUrl = s"http://localhost:$port/$account/$ffOutputQueueName"
-  val checksumOutputQueueUrl = s"http://localhost:$port/$account/$checksumOutputQueueName"
+  val api = SQSRestServerBuilder.withPort(port).withAWSRegion(Region.EU_WEST_2.toString).start()
+  val inputQueueUrl = s"http://localhost:$port/queue/$inputQueueName"
+  val avOutputQueueUrl = s"http://localhost:$port/queue/$avOutputQueueName"
+  val ffOutputQueueUrl = s"http://localhost:$port/queue/$ffOutputQueueName"
+  val checksumOutputQueueUrl = s"http://localhost:$port/queue/$checksumOutputQueueName"
 
   val s3Api = S3Mock(port = 8003, dir = "/tmp/s3")
 
@@ -64,9 +60,16 @@ object AWSUtils extends MockitoSugar {
       val record = new SQSMessage()
       val body = fromResource(s"json/$location.json").mkString
       record.setBody(body)
-      inputQueueHelper.send(body)
-      record.setReceiptHandle(receiptHandle(body))
+      val sendResponse = inputQueueHelper.send(body)
+      record.setMessageId(sendResponse.messageId)
       record
+    })
+
+    val inputQueueMessages = inputQueueHelper.receive
+
+    records.foreach(record => {
+      val receiptHandle = inputQueueMessages.filter(_.messageId == record.getMessageId).head.receiptHandle
+      record.setReceiptHandle(receiptHandle)
     })
 
     event.setRecords(records.asJava)
@@ -88,9 +91,24 @@ object AWSUtils extends MockitoSugar {
       .queueUrl(queueUrl)
       .build).messages.asScala.toList
 
+    def availableMessageCount: Int = attribute(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES).toInt
+
+    def notVisibleMessageCount: Int = attribute(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE).toInt
+
     def createQueue: CreateQueueResponse = sqsClient.createQueue(CreateQueueRequest.builder.queueName(queueUrl.split("/")(4)).build())
+
+    def deleteQueue: DeleteQueueResponse = sqsClient.deleteQueue(DeleteQueueRequest.builder.queueUrl(queueUrl).build)
 
     def delete(msg: Message): DeleteMessageResponse = sqsClient.deleteMessage(DeleteMessageRequest
       .builder.queueUrl(queueUrl).receiptHandle(msg.receiptHandle()).build)
+
+    private def attribute(name: QueueAttributeName): String = sqsClient
+      .getQueueAttributes(
+        GetQueueAttributesRequest
+          .builder
+          .queueUrl(queueUrl)
+          .attributeNames(name)
+          .build
+      ).attributes.get(name)
   }
 }
