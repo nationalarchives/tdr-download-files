@@ -15,14 +15,12 @@ class LambdaTest extends ExternalServicesTest {
 
   "The process method" should "put messages in the output queues if the messages are successful " in {
     putFile("testfile")
-    new Lambda().process(createEvent("sns_s3_event"), null)
-    val avMsgs = avOutputQueueHelper.receive
-    val ffMsgs = ffOutputQueueHelper.receive
-    val checksumMsgs = checksumOutputQueueHelper.receive
 
-    avMsgs.size should equal(1)
-    ffMsgs.size should equal(1)
-    checksumMsgs.size should equal(1)
+    new Lambda().process(createEvent("sns_s3_event"), null)
+
+    avOutputQueueHelper.availableMessageCount should equal(1)
+    ffOutputQueueHelper.availableMessageCount should equal(1)
+    checksumOutputQueueHelper.availableMessageCount should equal(1)
   }
 
   "The process method" should "put messages in the output queues, delete the successful messages and leave the key error message" in {
@@ -30,37 +28,40 @@ class LambdaTest extends ExternalServicesTest {
     intercept[RuntimeException] {
       new Lambda().process(createEvent("sns_empty_message", "sns_s3_event", "sns_s3_no_key"), null)
     }
-    val avMsgs = avOutputQueueHelper.receive
-    val ffMsgs = ffOutputQueueHelper.receive
-    val checksumMsgs = checksumOutputQueueHelper.receive
-    val inputMessages = inputQueueHelper.receive
 
-    avMsgs.size should equal(1)
-    ffMsgs.size should equal(1)
-    checksumMsgs.size should equal(1)
-    inputMessages.size should equal(2)
+    // Check available messages on output queues because a newly-added message is immediately visible
+    avOutputQueueHelper.availableMessageCount should equal(1)
+    ffOutputQueueHelper.availableMessageCount should equal(1)
+    checksumOutputQueueHelper.availableMessageCount should equal(1)
+
+    // Check non-visible messages, because messages which have been processed but not deleted are left as not visible
+    // until their message expiry timeout is over
+    inputQueueHelper.notVisibleMessageCount should equal(2)
   }
 
   "The process method" should "leave the queues unchanged if there are no successful messages" in {
     intercept[RuntimeException] {
       new Lambda().process(createEvent("sns_s3_no_key", "sns_empty_message"), null)
     }
-    val avMsgs = avOutputQueueHelper.receive
-    val ffMsgs = ffOutputQueueHelper.receive
-    val checksumMsgs = checksumOutputQueueHelper.receive
-    val inputMessages = inputQueueHelper.receive
 
-    avMsgs.size should equal(0)
-    ffMsgs.size should equal(0)
-    checksumMsgs.size should equal(0)
-    inputMessages.size should equal(2)
+    // Check available messages on output queues because a newly-added message is immediately visible
+    avOutputQueueHelper.availableMessageCount should equal(0)
+    ffOutputQueueHelper.availableMessageCount should equal(0)
+    checksumOutputQueueHelper.availableMessageCount should equal(0)
+
+    // Check non-visible messages, because messages which have been processed but not deleted are left as not visible
+    // until their message expiry timeout is over
+    inputQueueHelper.notVisibleMessageCount should equal(2)
   }
 
   "The process method" should "return the receipt handle for a successful message" in {
     putFile("testfile")
     val event = createEvent("sns_s3_event")
+    val originalReceiptHandle = event.getRecords.get(0).getReceiptHandle
+
     val response = new Lambda().process(event, null)
-    response.head should equal(receiptHandle(event.getRecords.get(0).getBody))
+
+    response.head should equal(originalReceiptHandle)
   }
 
   "The process method" should "throw an exception for a no key error" in {
