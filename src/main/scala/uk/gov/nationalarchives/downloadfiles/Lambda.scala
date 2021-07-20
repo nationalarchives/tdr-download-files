@@ -42,8 +42,9 @@ class Lambda {
       "auth.client.id",
       "auth.client.secret"
     ))
+  val downloadFilesQueueUrl: String = lambdaConfig("sqs.queue.input")
   val sqsUtils: SQSUtils = SQSUtils(sqs)
-  val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(lambdaConfig("sqs.queue.input"), _)
+  val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(downloadFilesQueueUrl, _)
   val fileFormatSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.fileformat"), _)
   val antivirusSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.antivirus"), _)
   val checksumSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.checksum"), _)
@@ -60,7 +61,7 @@ class Lambda {
     val fileUtils = FileUtils()
 
     val result: List[Future[String]] = eventsWithErrors.events
-      .flatMap(e => e.event.getRecords.asScala
+      .flatMap(eventWithReceiptHandle => eventWithReceiptHandle.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
           val cognitoId = s3KeyArr.head
@@ -80,9 +81,15 @@ class Lambda {
               fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
               antivirusSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
               checksumSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
-              e.receiptHandle
+              eventWithReceiptHandle.receiptHandle
             })
             Future.fromTry(s3Response)
+          }).recover(e => {
+            throw FailedDownloadException(
+              eventWithReceiptHandle.receiptHandle,
+              s"Failed to run download file step for file ID '$fileId'",
+              e
+            )
           })
         }))
 
@@ -95,7 +102,17 @@ class Lambda {
     val (downloadFileFailed: List[Throwable], downloadFileSucceeded) = results.partitionMap(_.toEither)
     val allErrors: List[Throwable] = downloadFileFailed ++ eventsWithErrors.errors
     if (allErrors.nonEmpty) {
-      allErrors.foreach(e => logger.error(e.getMessage, e))
+      allErrors.foreach(e => {
+        logger.error(e.getMessage, e)
+
+        e match {
+          case FailedDownloadException(receiptHandle, _, _) => {
+            // Reset message visibility so that it can be retried immediately
+            sqsUtils.makeMessageVisible(downloadFilesQueueUrl, receiptHandle)
+          }
+          case _ => // Allow message to expire and be retried at its original expiry time
+        }
+      })
       downloadFileSucceeded.map(deleteMessage)
       throw new RuntimeException(allErrors.mkString("\n"))
     } else {

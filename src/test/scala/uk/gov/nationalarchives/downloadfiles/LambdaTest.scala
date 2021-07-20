@@ -23,6 +23,34 @@ class LambdaTest extends ExternalServicesTest {
     checksumOutputQueueHelper.availableMessageCount should equal(1)
   }
 
+  "The process method" should "not send any messages to file check queues if there are no successful messages" in {
+    intercept[RuntimeException] {
+      new Lambda().process(createEvent("sns_s3_no_key", "sns_empty_message"), null)
+    }
+
+    avOutputQueueHelper.availableMessageCount should equal(0)
+    ffOutputQueueHelper.availableMessageCount should equal(0)
+    checksumOutputQueueHelper.availableMessageCount should equal(0)
+  }
+
+  "The process method" should "make the original message available again if the download step fails" in {
+    intercept[RuntimeException] {
+      new Lambda().process(createEvent("sns_s3_no_key"), null)
+    }
+
+    inputQueueHelper.availableMessageCount should equal(1)
+  }
+
+  "The process method" should "leave the original message if it cannot be parsed" in {
+    intercept[RuntimeException] {
+      new Lambda().process(createEvent("sns_empty_message"), null)
+    }
+
+    // Expect malformed JSON message to not be visible, because the receipt handle cannot be extracted in order to reset
+    // the message visibility
+    inputQueueHelper.notVisibleMessageCount should equal(1)
+  }
+
   "The process method" should "put messages in the output queues, delete the successful messages and leave the key error message" in {
     putFile("testfile")
     intercept[RuntimeException] {
@@ -34,24 +62,11 @@ class LambdaTest extends ExternalServicesTest {
     ffOutputQueueHelper.availableMessageCount should equal(1)
     checksumOutputQueueHelper.availableMessageCount should equal(1)
 
-    // Check non-visible messages, because messages which have been processed but not deleted are left as not visible
-    // until their message expiry timeout is over
-    inputQueueHelper.notVisibleMessageCount should equal(2)
-  }
-
-  "The process method" should "leave the queues unchanged if there are no successful messages" in {
-    intercept[RuntimeException] {
-      new Lambda().process(createEvent("sns_s3_no_key", "sns_empty_message"), null)
-    }
-
-    // Check available messages on output queues because a newly-added message is immediately visible
-    avOutputQueueHelper.availableMessageCount should equal(0)
-    ffOutputQueueHelper.availableMessageCount should equal(0)
-    checksumOutputQueueHelper.availableMessageCount should equal(0)
-
-    // Check non-visible messages, because messages which have been processed but not deleted are left as not visible
-    // until their message expiry timeout is over
-    inputQueueHelper.notVisibleMessageCount should equal(2)
+    // Expect message which fails the S3 step to be available so it can be retried immediately
+    inputQueueHelper.availableMessageCount should equal(1)
+    // Expect malformed JSON message to not be visible, because the receipt handle cannot be extracted in order to reset
+    // the message visibility
+    inputQueueHelper.notVisibleMessageCount should equal(1)
   }
 
   "The process method" should "return the receipt handle for a successful message" in {
@@ -69,7 +84,7 @@ class LambdaTest extends ExternalServicesTest {
     val exception = intercept[RuntimeException] {
       new Lambda().process(event, null)
     }
-    exception.getMessage should equal("software.amazon.awssdk.services.s3.model.NoSuchKeyException: The resource you requested does not exist (Service: S3, Status Code: 404, Request ID: null, Extended Request ID: null)")
+    exception.getMessage should include("Failed to run download file step for file ID 'e3641944-a302-4df2-a746-2f56c2698d8f'")
   }
 
   "The process method" should "throw an exception if a message is not a valid S3 event" in {
