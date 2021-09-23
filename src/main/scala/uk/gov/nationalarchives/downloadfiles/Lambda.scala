@@ -2,7 +2,6 @@ package uk.gov.nationalarchives.downloadfiles
 
 import java.io.File
 import java.util.UUID
-
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
@@ -16,7 +15,7 @@ import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
 import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
-import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
+import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput}
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
 
@@ -77,10 +76,12 @@ class Lambda {
             val writeDirectory = originalPath.split("/").init.mkString("/")
             new File(s"$prefix/$writeDirectory").mkdirs()
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
+            val dirtyBucketName = record.getS3.getBucket.getName
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
-              fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
-              antivirusSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
-              checksumSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
+              val output = DownloadOutput(consignmentId, fileId, originalPath).asJson.noSpaces
+              fileFormatSendMessage(output)
+              antivirusSendMessage(AntivirusDownloadOutput(consignmentId, fileId, originalPath, cognitoId, cognitoId, dirtyBucketName).asJson.noSpaces)
+              checksumSendMessage(output)
               eventWithReceiptHandle.receiptHandle
             })
             Future.fromTry(s3Response)
@@ -122,5 +123,6 @@ class Lambda {
 }
 
 object Lambda {
-  case class DownloadOutput(cognitoId: String, consignmentId: UUID, fileId: UUID, originalPath: String)
+  case class DownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String)
+  case class AntivirusDownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String, cognitoId: String, userId: String, dirtyBucketName: String)
 }
