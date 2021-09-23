@@ -12,16 +12,16 @@ import scala.reflect.io.Directory
 
 // An entry point you can use to run the Lambda code locally
 object LambdaRunner extends App {
-  val fileId: UUID = UUID.fromString("686181e5-8379-4b39-8681-7e71aab2e98d")
-  val consignmentId: UUID = UUID.fromString("750aa09a-1254-4e2f-b9b9-c838ed091dd6")
-  val cognitoUserId: String = "eu-west-2:56f64881-67ca-4657-87dc-3065a6ce3b20"
-  val bucketName: String = "tdr-upload-files-dirty-intg"
+  val fileId: UUID = UUID.fromString("1b93cc1a-38eb-4176-acfc-38e6ea50cc41")
+  val consignmentId: UUID = UUID.fromString("fca0aaba-7234-4bc6-8399-db034d76baba")
+  val userId: String = "8d2caf26-7163-42ea-96a9-8460ad60db22"
+  val bucketName: String = "tdr-upload-files-cloudfront-dirty-intg"
   val downloadPath = ConfigFactory.load.getString("efs.root.location")
   val receiptHandle = "fake-receipt-handle"
 
   wipeConsignmentDirectory(downloadPath, consignmentId)
 
-  val fakeSqsEvent: SQSEvent = buildSqsEvent(fileId, consignmentId, cognitoUserId, bucketName, receiptHandle)
+  val fakeSqsEvent: SQSEvent = buildSqsEvent(fileId, consignmentId, userId, bucketName, receiptHandle)
 
   // Context is not used, so it's safe to pass null
   val emptyLambdaContext = null
@@ -34,9 +34,9 @@ object LambdaRunner extends App {
     consignmentDirectory.deleteRecursively()
   }
 
-  private def buildSqsEvent(fileId: UUID, consignmentId: UUID, cognitoUserId: String,
+  private def buildSqsEvent(fileId: UUID, consignmentId: UUID, userId: String,
                             bucketName: String, receiptHandle: String) = {
-    val body: String = buildMessageBody(fileId, consignmentId, cognitoUserId, bucketName)
+    val body: String = buildMessageBody(fileId, consignmentId, userId, bucketName)
     val snsMessage: String = buildSnsMessage(body)
 
     val sqsMessage = new SQSMessage
@@ -49,8 +49,8 @@ object LambdaRunner extends App {
     fakeSqsEvent
   }
 
-  private def buildMessageBody(fileId: UUID, consignmentId: UUID, cognitoUserId: String, bucketName: String): String = {
-    val s3ObjectKey = s"$cognitoUserId/$consignmentId/$fileId"
+  private def buildMessageBody(fileId: UUID, consignmentId: UUID, userId: String, bucketName: String): String = {
+    val s3ObjectKey = s"$userId/$consignmentId/$fileId"
 
     s"""{
       |   "Records": [
