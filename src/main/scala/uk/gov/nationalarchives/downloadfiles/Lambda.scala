@@ -2,7 +2,6 @@ package uk.gov.nationalarchives.downloadfiles
 
 import java.io.File
 import java.util.UUID
-
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
@@ -16,7 +15,7 @@ import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
 import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
-import uk.gov.nationalarchives.downloadfiles.Lambda.DownloadOutput
+import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput}
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
 
@@ -64,6 +63,9 @@ class Lambda {
       .flatMap(eventWithReceiptHandle => eventWithReceiptHandle.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
+          val userId = s3KeyArr.head
+          // This is the same value as the userId as it's the first part of the path. We need both for now so the antivirus doesn't break when deploying.
+          // Once this and the antivirus changes are merged, the cognitoId variable can be deleted and removed from the outgoing json.
           val cognitoId = s3KeyArr.head
           val fileId = UUID.fromString(s3KeyArr.last)
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
@@ -77,10 +79,12 @@ class Lambda {
             val writeDirectory = originalPath.split("/").init.mkString("/")
             new File(s"$prefix/$writeDirectory").mkdirs()
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
+            val dirtyBucketName = record.getS3.getBucket.getName
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
-              fileFormatSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
-              antivirusSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
-              checksumSendMessage(DownloadOutput(cognitoId, consignmentId, fileId, originalPath).asJson.noSpaces)
+              val output = DownloadOutput(consignmentId, fileId, originalPath).asJson.noSpaces
+              fileFormatSendMessage(output)
+              antivirusSendMessage(AntivirusDownloadOutput(consignmentId, fileId, originalPath, cognitoId, userId, dirtyBucketName).asJson.noSpaces)
+              checksumSendMessage(output)
               eventWithReceiptHandle.receiptHandle
             })
             Future.fromTry(s3Response)
@@ -122,5 +126,6 @@ class Lambda {
 }
 
 object Lambda {
-  case class DownloadOutput(cognitoId: String, consignmentId: UUID, fileId: UUID, originalPath: String)
+  case class DownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String)
+  case class AntivirusDownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String, cognitoId: String, userId: String, dirtyBucketName: String)
 }

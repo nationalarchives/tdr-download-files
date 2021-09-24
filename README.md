@@ -54,7 +54,7 @@ Log into AWS SSO, and copy credentials for intg to your AWS credentials file.
 On the command line, run `sbt run`. In IntelliJ, run the `LambdaRunner` app.
 
 The `LambdaRunner` hard-codes a message for a specific file ID. This corresponds to a small text file that was uploaded
-to intg. You can use a different file ID, but you'll need to set the consignment ID and Cognito user ID to the correct
+to intg. You can use a different file ID, but you'll need to set the consignment ID and user ID to the correct
 values for the file so that they match the object ID in S3.
 
 Running the `LambdaRunner` will add messages to the downstream file check queues, so the real file checks will start on
