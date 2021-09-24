@@ -64,6 +64,9 @@ class Lambda {
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
           val userId = s3KeyArr.head
+          // This is the same value as the userId as it's the first part of the path. We need both for now so the antivirus doesn't break when deploying.
+          // Once this and the antivirus changes are merged, the cognitoId variable can be deleted and removed from the outgoing json.
+          val cognitoId = s3KeyArr.head
           val fileId = UUID.fromString(s3KeyArr.last)
           val consignmentId = UUID.fromString(s3KeyArr.init.tail(0))
           logger.info(
@@ -80,7 +83,7 @@ class Lambda {
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
               val output = DownloadOutput(consignmentId, fileId, originalPath).asJson.noSpaces
               fileFormatSendMessage(output)
-              antivirusSendMessage(AntivirusDownloadOutput(consignmentId, fileId, originalPath, userId, userId, dirtyBucketName).asJson.noSpaces)
+              antivirusSendMessage(AntivirusDownloadOutput(consignmentId, fileId, originalPath, cognitoId, userId, dirtyBucketName).asJson.noSpaces)
               checksumSendMessage(output)
               eventWithReceiptHandle.receiptHandle
             })
