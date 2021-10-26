@@ -15,10 +15,11 @@ import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
 import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
-import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput}
+import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput, DownloadOutputWithReceiptHandle}
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
 
+import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -51,6 +52,7 @@ class Lambda {
 
 
   def process(event: SQSEvent, context: Context): List[String] = {
+    val startTime = Instant.now
     val efsRootLocation = lambdaConfig("efs.root.location")
     val keycloakUtils = KeycloakUtils(lambdaConfig("url.auth"))
     val client: GraphQLClient[Data, Variables] = new GraphQLClient[Data, Variables](lambdaConfig("url.api"))
@@ -59,7 +61,7 @@ class Lambda {
     val eventsWithErrors = decodeS3EventFromSqs(event)
     val fileUtils = FileUtils()
 
-    val result: List[Future[String]] = eventsWithErrors.events
+    val result: List[Future[DownloadOutputWithReceiptHandle]] = eventsWithErrors.events
       .flatMap(eventWithReceiptHandle => eventWithReceiptHandle.event.getRecords.asScala
         .map(record => {
           val s3KeyArr = record.getS3.getObject.getKey.split("/")
@@ -78,11 +80,12 @@ class Lambda {
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
             val dirtyBucketName = record.getS3.getBucket.getName
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
-              val output = DownloadOutput(consignmentId, fileId, originalPath).asJson.noSpaces
-              fileFormatSendMessage(output)
+              val output = DownloadOutput(consignmentId, fileId, originalPath)
+              val outputString = output.asJson.noSpaces
+              fileFormatSendMessage(outputString)
               antivirusSendMessage(AntivirusDownloadOutput(consignmentId, fileId, originalPath, userId, dirtyBucketName).asJson.noSpaces)
-              checksumSendMessage(output)
-              eventWithReceiptHandle.receiptHandle
+              checksumSendMessage(outputString)
+              DownloadOutputWithReceiptHandle(output, eventWithReceiptHandle.receiptHandle)
             })
             Future.fromTry(s3Response)
           }).recover(e => {
@@ -94,7 +97,7 @@ class Lambda {
           })
         }))
 
-    val results: List[Try[String]] = Await.result(
+    val results: List[Try[DownloadOutputWithReceiptHandle]] = Await.result(
       Future.sequence(result.map(r => r.map(Success(_)).recover(Failure(_)))),
       // Allow enough time to download large files, but time out before the Lambda reaches it own timeout
       2.5 minutes
@@ -114,15 +117,26 @@ class Lambda {
           case _ => // Allow message to expire and be retried at its original expiry time
         }
       })
-      downloadFileSucceeded.map(deleteMessage)
+
+      downloadFileSucceeded.map(download => deleteMessage(download.receiptHandle))
       throw new RuntimeException(allErrors.mkString("\n"))
     } else {
-      downloadFileSucceeded
+      val timeTaken = java.time.Duration.between(startTime, Instant.now).toMillis.toDouble / 1000
+      downloadFileSucceeded.map(success => {
+        logger.info(
+          s"Lambda complete in {} seconds for file ID '{}' and consignment ID '{}'",
+          value("timeTaken", timeTaken),
+          value("fileId", success.downloadOutput.fileId),
+          value("consignmentId", success.downloadOutput.consignmentId)
+        )
+        success.receiptHandle
+      })
     }
   }
 }
 
 object Lambda {
+  case class DownloadOutputWithReceiptHandle(downloadOutput: DownloadOutput, receiptHandle: String)
   case class DownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String)
   case class AntivirusDownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String, userId: String, dirtyBucketName: String)
 }
