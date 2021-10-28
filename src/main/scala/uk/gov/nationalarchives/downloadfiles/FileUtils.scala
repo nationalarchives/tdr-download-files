@@ -11,13 +11,13 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import sttp.client.{Identity, NothingT, SttpBackend}
 import uk.gov.nationalarchives.tdr.error.NotAuthorisedError
-import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
+import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
 import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
-class FileUtils()(implicit val executionContext: ExecutionContext) {
+class FileUtils()(implicit val executionContext: ExecutionContext, keycloakDeployment: TdrKeycloakDeployment) {
   case class DownloadFilesException(msg: String) extends RuntimeException
 
   private def failed(msg: String) = Future.failed(new RuntimeException(msg))
@@ -59,5 +59,5 @@ class FileUtils()(implicit val executionContext: ExecutionContext) {
 }
 
 object FileUtils {
-  def apply()(implicit executionContext: ExecutionContext): FileUtils = new FileUtils()(executionContext)
+  def apply()(implicit executionContext: ExecutionContext, keycloakDeployment: TdrKeycloakDeployment): FileUtils = new FileUtils()(executionContext, keycloakDeployment)
 }
