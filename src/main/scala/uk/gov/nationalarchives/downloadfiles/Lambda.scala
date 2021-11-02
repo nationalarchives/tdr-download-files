@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.downloadfiles
 
 import java.io.File
 import java.util.UUID
+
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
@@ -17,9 +18,9 @@ import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
 import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput, DownloadOutputWithReceiptHandle}
 import uk.gov.nationalarchives.tdr.GraphQLClient
-import uk.gov.nationalarchives.tdr.keycloak.KeycloakUtils
-
+import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
 import java.time.Instant
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -50,11 +51,12 @@ class Lambda {
   val checksumSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.checksum"), _)
   val logger: Logger = Logger[Lambda]
 
+  implicit val tdrKeycloakDeployment: TdrKeycloakDeployment = TdrKeycloakDeployment(lambdaConfig("url.auth"), "tdr", 3600)
 
   def process(event: SQSEvent, context: Context): List[String] = {
     val startTime = Instant.now
     val efsRootLocation = lambdaConfig("efs.root.location")
-    val keycloakUtils = KeycloakUtils(lambdaConfig("url.auth"))
+    val keycloakUtils = KeycloakUtils()
     val client: GraphQLClient[Data, Variables] = new GraphQLClient[Data, Variables](lambdaConfig("url.api"))
     implicit val backend: SttpBackend[Identity, Nothing, NothingT] = HttpURLConnectionBackend()
 
