@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.0"
+  lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.11"
   lazy val circeCore = "io.circe" %% "circe-core" % "0.13.0"
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.13.0"
   lazy val circeParser = "io.circe" %% "circe-parser" % "0.13.0"
