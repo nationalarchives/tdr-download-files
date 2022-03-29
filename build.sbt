@@ -34,12 +34,12 @@ lazy val root = (project in file("."))
       )
   )
 
-assemblyJarName in assembly := "download-files.jar"
+(assembly / assemblyJarName) := "download-files.jar"
 
-assemblyMergeStrategy in assembly := {
+(assembly / assemblyMergeStrategy) := {
   case PathList("META-INF", xs@_*) => MergeStrategy.discard
   case _ => MergeStrategy.first
 }
 
-fork in Test := true
-javaOptions in Test += s"-Dconfig.file=${sourceDirectory.value}/test/resources/application.conf"
+(Test / fork) := true
+(Test / javaOptions) += s"-Dconfig.file=${sourceDirectory.value}/test/resources/application.conf"
