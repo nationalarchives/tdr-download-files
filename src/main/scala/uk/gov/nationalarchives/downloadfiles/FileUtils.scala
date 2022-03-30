@@ -9,7 +9,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables, document}
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
-import sttp.client.{Identity, NothingT, SttpBackend}
+import sttp.client3.{Identity, SttpBackend}
 import uk.gov.nationalarchives.tdr.error.NotAuthorisedError
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
 import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
@@ -36,7 +36,7 @@ class FileUtils()(implicit val executionContext: ExecutionContext, keycloakDeplo
     case errors => failed(s"GraphQL response contained errors: ${errors.map(e => e.message).mkString}")
   }
 
-  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID, lambdaConfig: Map[String, String])(implicit backend: SttpBackend[Identity, Nothing, NothingT]): Future[String] =
+  def getFilePath(keycloakUtils: KeycloakUtils, client: GraphQLClient[Data, Variables], fileId: UUID, lambdaConfig: Map[String, String])(implicit backend: SttpBackend[Identity, Any]): Future[String] =
     for {
       token <- keycloakUtils.serviceAccountToken(lambdaConfig("auth.client.id"), lambdaConfig("auth.client.secret"))
       response <- client.getResult(token, document, Option(Variables(fileId)))
