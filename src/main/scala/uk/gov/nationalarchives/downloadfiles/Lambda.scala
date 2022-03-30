@@ -12,7 +12,7 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import net.logstash.logback.argument.StructuredArguments.value
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
-import sttp.client.{HttpURLConnectionBackend, Identity, NothingT, SttpBackend}
+import sttp.client3.{HttpURLConnectionBackend, Identity, SttpBackend}
 import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
 import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
@@ -58,7 +58,7 @@ class Lambda {
     val efsRootLocation = lambdaConfig("efs.root.location")
     val keycloakUtils = KeycloakUtils()
     val client: GraphQLClient[Data, Variables] = new GraphQLClient[Data, Variables](lambdaConfig("url.api"))
-    implicit val backend: SttpBackend[Identity, Nothing, NothingT] = HttpURLConnectionBackend()
+    implicit val backend: SttpBackend[Identity, Any] = HttpURLConnectionBackend()
 
     val eventsWithErrors = decodeS3EventFromSqs(event)
     val fileUtils = FileUtils()
