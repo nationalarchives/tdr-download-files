@@ -16,6 +16,6 @@ object Dependencies {
   lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "7.1.1"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "1.17.5"
   lazy val s3Mock = "io.findify" %% "s3mock" % "0.2.6"
-  lazy val elasticMq = "org.elasticmq" %% "elasticmq-server" % "1.3.6"
-  lazy val elasticMqSqs = "org.elasticmq" %% "elasticmq-rest-sqs" % "1.3.6"
+  lazy val elasticMq = "org.elasticmq" %% "elasticmq-server" % "1.3.7"
+  lazy val elasticMqSqs = "org.elasticmq" %% "elasticmq-rest-sqs" % "1.3.7"
 }
