@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.240"
+  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.241"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.12"
   lazy val circeCore = "io.circe" %% "circe-core" % "0.14.1"
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.1"
