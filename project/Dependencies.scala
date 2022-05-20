@@ -3,9 +3,9 @@ import sbt._
 object Dependencies {
   lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.241"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.12"
-  lazy val circeCore = "io.circe" %% "circe-core" % "0.14.1"
-  lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.1"
-  lazy val circeParser = "io.circe" %% "circe-parser" % "0.14.1"
+  lazy val circeCore = "io.circe" %% "circe-core" % "0.14.2"
+  lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.2"
+  lazy val circeParser = "io.circe" %% "circe-parser" % "0.14.2"
   lazy val lambdaJavaCore = "com.amazonaws" % "aws-lambda-java-core" % "1.2.1"
   lazy val lambdaJavaEvents = "com.amazonaws" % "aws-lambda-java-events" % "3.1.0"
   lazy val awsUtils =  "uk.gov.nationalarchives" %% "tdr-aws-utils" % "0.1.29"
