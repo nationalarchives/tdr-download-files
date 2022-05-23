@@ -92,7 +92,7 @@ class LambdaTest extends ExternalServicesTest {
     val exception = intercept[RuntimeException] {
       new Lambda().process(event, null)
     }
-    exception.getMessage should include("Attempt to decode value")
+    exception.getMessage should include("DecodingFailure(Missing required field, List(DownField(Records)))")
   }
 
   "The process method" should "send the correct output to the queues" in {
