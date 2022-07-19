@@ -29,6 +29,8 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
 
   val wiremockGraphqlServer = new WireMockServer(9001)
   val wiremockAuthServer = new WireMockServer(9002)
+  val wiremockSsmServer = new WireMockServer(9003)
+
   val wiremockKmsEndpoint = new WireMockServer(new WireMockConfiguration().port(9004).extensions(new ResponseDefinitionTransformer {
     override def transform(request: Request, responseDefinition: ResponseDefinition, files: FileSource, parameters: Parameters): ResponseDefinition = {
       case class KMSRequest(CiphertextBlob: String)
@@ -68,11 +70,19 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
   def authOk: StubMapping = wiremockAuthServer.stubFor(post(urlEqualTo(authPath))
     .willReturn(okJson(fromResource(s"json/access_token.json").mkString)))
 
+  def setupSsmServer(): Unit = {
+    wiremockSsmServer
+      .stubFor(post(urlEqualTo("/"))
+        .willReturn(okJson("{\"Parameter\":{\"Name\":\"string\",\"Value\":\"string\"}}"))
+      )
+  }
+
   override def beforeAll(): Unit = {
     s3Api.start
     wiremockGraphqlServer.start()
     wiremockAuthServer.start()
     wiremockKmsEndpoint.start()
+    wiremockSsmServer.start()
   }
 
   override def beforeEach(): Unit = {
@@ -80,6 +90,7 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     graphqlOriginalPath
     authOk
     createBucket
+    setupSsmServer()
     inputQueueHelper.createQueue
     avOutputQueueHelper.createQueue
     ffOutputQueueHelper.createQueue
@@ -90,6 +101,7 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockGraphqlServer.stop()
     wiremockAuthServer.stop()
     wiremockKmsEndpoint.stop()
+    wiremockSsmServer.stop()
   }
 
   override def afterEach(): Unit = {
@@ -97,6 +109,7 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockAuthServer.resetAll()
     wiremockGraphqlServer.resetAll()
     wiremockKmsEndpoint.resetAll()
+    wiremockSsmServer.resetAll()
     "rm -rf ./src/test/resources/testfiles/f0a73877-6057-4bbb-a1eb-7c7b73cab586".!
     inputQueueHelper.deleteQueue
     avOutputQueueHelper.deleteQueue

@@ -1,14 +1,11 @@
 package uk.gov.nationalarchives.downloadfiles
 
-import java.nio.file.Path
-import java.util.UUID
-
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification.{S3BucketEntity, S3Entity, S3EventNotificationRecord, S3ObjectEntity}
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken
-import com.typesafe.config.ConfigFactory
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, GetClientFileMetadata, Variables, document}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.{ArgumentCaptor, MockitoSugar}
+import org.scalatest.TryValues._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{equal, _}
@@ -20,17 +17,19 @@ import sttp.model.StatusCode
 import uk.gov.nationalarchives.tdr.GraphQLClient.Extensions
 import uk.gov.nationalarchives.tdr.error.{GraphQlError, HttpException}
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
-import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse, keycloak}
+import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
 
+import java.nio.file.Path
+import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
-import org.scalatest.TryValues._
 
 class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
-  val lambdaConfig = Map(
+  val lambdaConfig: Map[String, String] = Map(
     "auth.client.id" -> "client_id",
     "auth.client.secret" -> "secret",
+    "auth.client.secret-path" -> "/a/secret/path",
     "url.auth" -> "authUrl")
 
   implicit val backend: SttpBackend[Identity, Any] = HttpURLConnectionBackend()
@@ -49,7 +48,6 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     val fileUtils = FileUtils()
     fileUtils.getFilePath(keycloakUtils, client, UUID.randomUUID(), lambdaConfig).futureValue
 
-    val configFactory = ConfigFactory.load
     val expectedId = "client_id"
     val expectedSecret = "secret"
 

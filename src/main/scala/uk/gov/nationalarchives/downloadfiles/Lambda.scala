@@ -2,7 +2,6 @@ package uk.gov.nationalarchives.downloadfiles
 
 import java.io.File
 import java.util.UUID
-
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
@@ -11,7 +10,10 @@ import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import net.logstash.logback.argument.StructuredArguments.value
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
+import software.amazon.awssdk.services.ssm.SsmClient
+import software.amazon.awssdk.services.ssm.model.GetParameterRequest
 import sttp.client3.{HttpURLConnectionBackend, Identity, SttpBackend}
 import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
 import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
@@ -19,8 +21,10 @@ import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
 import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput, DownloadOutputWithReceiptHandle}
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
-import java.time.Instant
 
+import java.net.URI
+import java.time.Instant
+import scala.annotation.unused
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -31,6 +35,7 @@ import scala.util.{Failure, Success, Try}
 class Lambda {
   val config: Config = ConfigFactory.load
   val kmsUtils: KMSUtils = KMSUtils(kms(config.getString("kms.endpoint")), Map("LambdaFunctionName" -> config.getString("function.name")))
+  val clientSecret: String = getClientSecret(config.getString("auth.client.secret-path"), config.getString("ssm.endpoint"))
   val lambdaConfig: Map[String, String] = kmsUtils.decryptValuesFromConfig(
     List(
       "sqs.queue.input",
@@ -40,9 +45,10 @@ class Lambda {
       "efs.root.location",
       "url.auth",
       "url.api",
-      "auth.client.id",
-      "auth.client.secret"
-    ))
+      "auth.client.id"
+    )) + ("auth.client.secret" -> clientSecret)
+
+
   val downloadFilesQueueUrl: String = lambdaConfig("sqs.queue.input")
   val sqsUtils: SQSUtils = SQSUtils(sqs)
   val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(downloadFilesQueueUrl, _)
@@ -53,7 +59,16 @@ class Lambda {
 
   implicit val tdrKeycloakDeployment: TdrKeycloakDeployment = TdrKeycloakDeployment(lambdaConfig("url.auth"), "tdr", 3600)
 
-  def process(event: SQSEvent, context: Context): List[String] = {
+  def getClientSecret(secretPath: String, endpoint: String): String = {
+    val ssmClient: SsmClient = SsmClient.builder()
+      .endpointOverride(URI.create(endpoint))
+      .region(Region.EU_WEST_2)
+      .build()
+    val getParameterRequest = GetParameterRequest.builder.name(secretPath).withDecryption(true).build
+    ssmClient.getParameter(getParameterRequest).parameter().value()
+  }
+
+  def process(event: SQSEvent, @unused context: Context): List[String] = {
     val startTime = Instant.now
     val efsRootLocation = lambdaConfig("efs.root.location")
     val keycloakUtils = KeycloakUtils()
@@ -112,10 +127,9 @@ class Lambda {
         logger.error(e.getMessage, e)
 
         e match {
-          case FailedDownloadException(receiptHandle, _, _) => {
+          case FailedDownloadException(receiptHandle, _, _) =>
             // Reset message visibility so that it can be retried immediately
             sqsUtils.makeMessageVisible(downloadFilesQueueUrl, receiptHandle)
-          }
           case _ => // Allow message to expire and be retried at its original expiry time
         }
       })
