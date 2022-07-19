@@ -14,6 +14,7 @@ lazy val root = (project in file("."))
     name := "tdr-download-files",
     libraryDependencies ++=
       Seq(
+        awsSsm,
         circeCore,
         circeGeneric,
         circeParser,
