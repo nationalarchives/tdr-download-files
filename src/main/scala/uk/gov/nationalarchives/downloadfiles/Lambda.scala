@@ -35,7 +35,7 @@ import scala.util.{Failure, Success, Try}
 class Lambda {
   val config: Config = ConfigFactory.load
   val kmsUtils: KMSUtils = KMSUtils(kms(config.getString("kms.endpoint")), Map("LambdaFunctionName" -> config.getString("function.name")))
-  val clientSecret: String = getClientSecret(config.getString("auth.client.secret-path"), config.getString("ssm.endpoint"))
+  val clientSecret: String = getClientSecret(config.getString("auth.client.secret_path"), config.getString("ssm.endpoint"))
   val lambdaConfig: Map[String, String] = kmsUtils.decryptValuesFromConfig(
     List(
       "sqs.queue.input",

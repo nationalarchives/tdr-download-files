@@ -29,7 +29,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
   val lambdaConfig: Map[String, String] = Map(
     "auth.client.id" -> "client_id",
     "auth.client.secret" -> "secret",
-    "auth.client.secret-path" -> "/a/secret/path",
+    "auth.client.secret_path" -> "/a/secret/path",
     "url.auth" -> "authUrl")
 
   implicit val backend: SttpBackend[Identity, Any] = HttpURLConnectionBackend()
