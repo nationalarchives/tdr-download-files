@@ -10,6 +10,7 @@ import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import net.logstash.logback.argument.StructuredArguments.value
+import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMessageResponse}
 import software.amazon.awssdk.services.ssm.SsmClient
@@ -60,8 +61,10 @@ class Lambda {
   implicit val tdrKeycloakDeployment: TdrKeycloakDeployment = TdrKeycloakDeployment(lambdaConfig("url.auth"), "tdr", 3600)
 
   def getClientSecret(secretPath: String, endpoint: String): String = {
+    val httpClient = ApacheHttpClient.builder.build
     val ssmClient: SsmClient = SsmClient.builder()
       .endpointOverride(URI.create(endpoint))
+      .httpClient(httpClient)
       .region(Region.EU_WEST_2)
       .build()
     val getParameterRequest = GetParameterRequest.builder.name(secretPath).withDecryption(true).build
