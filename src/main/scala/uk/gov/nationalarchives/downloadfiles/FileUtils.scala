@@ -6,7 +6,10 @@ import java.util.UUID
 
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification.S3EventNotificationRecord
 import com.typesafe.config.{Config, ConfigFactory}
+import graphql.codegen.AddFileStatus.{addFileStatus => afs}
+import graphql.codegen.AddFileStatus.addFileStatus.AddFileStatus
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables, document}
+import graphql.codegen.types.AddFileStatusInput
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import sttp.client3.{Identity, SttpBackend}
@@ -42,6 +45,23 @@ class FileUtils()(implicit val executionContext: ExecutionContext, keycloakDeplo
       response <- client.getResult(token, document, Option(Variables(fileId)))
       filePath <- pathFromResponse(response, fileId)
     } yield filePath
+
+  def addFileStatus(keycloakUtils: KeycloakUtils, client: GraphQLClient[afs.Data, afs.Variables], fileId: UUID, lambdaConfig: Map[String, String])(implicit backend: SttpBackend[Identity, Any]): Future[AddFileStatus] = {
+
+    val statusType = "Upload"
+    val statusValue = "Success"
+    for {
+      token <- keycloakUtils.serviceAccountToken(lambdaConfig("auth.client.id"), lambdaConfig("auth.client.secret"))
+      response <- client.getResult(token, document, Option(afs.Variables(AddFileStatusInput(fileId, statusType, statusValue))))
+      fileStatus <- getFileStatusResponse(response, statusType, statusValue)
+    } yield fileStatus
+  }
+
+  private def getFileStatusResponse(response: GraphQlResponse[afs.Data], statusType: String, statusValue: String): Future[AddFileStatus] = response.errors match {
+    case Nil => Future(response.data.get.addFileStatus)
+    case List(authorisedError: NotAuthorisedError) => failed(authorisedError.message)
+    case errors => failed(s"Unable to add file status with statusType '$statusType' and value '$statusValue'. Errors: ${errors.map(e => e.message).mkString}")
+  }
 
   def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3Client): Try[String] = {
     val s3Obj = record.getS3

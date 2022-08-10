@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables}
+import graphql.codegen.AddFileStatus.{addFileStatus => afs}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import net.logstash.logback.argument.StructuredArguments.value
@@ -76,6 +77,8 @@ class Lambda {
     val efsRootLocation = lambdaConfig("efs.root.location")
     val keycloakUtils = KeycloakUtils()
     val client: GraphQLClient[Data, Variables] = new GraphQLClient[Data, Variables](lambdaConfig("url.api"))
+    val addFileStatusClient: GraphQLClient[afs.Data, afs.Variables] = new GraphQLClient[afs.Data, afs.Variables](lambdaConfig("url.api"))
+
     implicit val backend: SttpBackend[Identity, Any] = HttpURLConnectionBackend()
 
     val eventsWithErrors = decodeS3EventFromSqs(event)
@@ -93,6 +96,8 @@ class Lambda {
             value("fileId", fileId),
             value("consignmentId", consignmentId)
           )
+          // add FileStatus with statusType as 'Upload' and value as 'Success'
+          fileUtils.addFileStatus(keycloakUtils, addFileStatusClient, fileId, lambdaConfig)
           fileUtils.getFilePath(keycloakUtils, client, fileId, lambdaConfig).flatMap(originalPath => {
             val prefix = s"$efsRootLocation/$consignmentId"
             val writeDirectory = originalPath.split("/").init.mkString("/")
