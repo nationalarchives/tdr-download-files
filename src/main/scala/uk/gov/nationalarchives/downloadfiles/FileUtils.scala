@@ -5,7 +5,6 @@ import java.nio.file.Paths
 import java.util.UUID
 
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification.S3EventNotificationRecord
-import com.typesafe.config.{Config, ConfigFactory}
 import graphql.codegen.AddFileStatus.{addFileStatus => afs}
 import graphql.codegen.AddFileStatus.addFileStatus.AddFileStatus
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables, document}
@@ -53,14 +52,14 @@ class FileUtils()(implicit val executionContext: ExecutionContext, keycloakDeplo
     for {
       token <- keycloakUtils.serviceAccountToken(lambdaConfig("auth.client.id"), lambdaConfig("auth.client.secret"))
       response <- client.getResult(token, document, Option(afs.Variables(AddFileStatusInput(fileId, statusType, statusValue))))
-      fileStatus <- getFileStatusResponse(response, statusType, statusValue)
+      fileStatus <- getFileStatusResponse(response, fileId, statusType, statusValue)
     } yield fileStatus
   }
 
-  private def getFileStatusResponse(response: GraphQlResponse[afs.Data], statusType: String, statusValue: String): Future[AddFileStatus] = response.errors match {
+  private def getFileStatusResponse(response: GraphQlResponse[afs.Data], fileId: UUID, statusType: String, statusValue: String): Future[AddFileStatus] = response.errors match {
     case Nil => Future(response.data.get.addFileStatus)
     case List(authorisedError: NotAuthorisedError) => failed(authorisedError.message)
-    case errors => failed(s"Unable to add file status with statusType '$statusType' and value '$statusValue'. Errors: ${errors.map(e => e.message).mkString}")
+    case errors => failed(s"Unable to add file status with statusType '$statusType' and value '$statusValue' for file '$fileId'. Errors: ${errors.map(e => e.message).mkString}")
   }
 
   def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3Client): Try[String] = {

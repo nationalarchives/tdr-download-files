@@ -96,7 +96,6 @@ class Lambda {
             value("fileId", fileId),
             value("consignmentId", consignmentId)
           )
-          // add FileStatus with statusType as 'Upload' and value as 'Success'
           fileUtils.addFileStatus(keycloakUtils, addFileStatusClient, fileId, lambdaConfig)
           fileUtils.getFilePath(keycloakUtils, client, fileId, lambdaConfig).flatMap(originalPath => {
             val prefix = s"$efsRootLocation/$consignmentId"

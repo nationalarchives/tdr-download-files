@@ -181,7 +181,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     res.getMessage shouldEqual "GraphQL response contained errors: General error"
   }
 
-  "The addFileStatus method" should "add a file status" in {
+  "addFileStatus method" should "add a file status" in {
     val client = mock[GraphQLClient[afs.Data, afs.Variables]]
     val keycloakUtils = mock[KeycloakUtils]
     val fileID = UUID.randomUUID()
@@ -205,7 +205,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     verify(keycloakUtils).serviceAccountToken(expectedId, expectedSecret)
   }
 
-  "The addFileStatus method" should "error if the graphql query returns not authorised errors" in {
+  "addFileStatus method" should "error if the graphql query returns not authorised errors" in {
     val client = mock[GraphQLClient[afs.Data, afs.Variables]]
     val keycloakUtils = mock[KeycloakUtils]
 
@@ -225,7 +225,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     res.getMessage shouldEqual "Not authorised message"
   }
 
-  "The addFileStatus method" should "error if the graphql query returns a general error" in {
+  "addFileStatus method" should "error if the graphql query returns a general error" in {
     val client = mock[GraphQLClient[afs.Data, afs.Variables]]
     val keycloakUtils = mock[KeycloakUtils]
 
@@ -238,8 +238,9 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[afs.Variables]])(any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]]))
       .thenReturn(Future.successful(graphqlResponse))
 
-    val res: Throwable = FileUtils().addFileStatus(keycloakUtils, client, UUID.randomUUID(), lambdaConfig).failed.futureValue
-    res.getMessage shouldEqual "Unable to add file status with statusType 'Upload' and value 'Success'. Errors: General error"
+    val fileId = UUID.randomUUID()
+    val res: Throwable = FileUtils().addFileStatus(keycloakUtils, client, fileId, lambdaConfig).failed.futureValue
+    res.getMessage shouldEqual s"Unable to add file status with statusType 'Upload' and value 'Success' for file '$fileId'. Errors: General error"
   }
 
   "The writeFileFromS3 method" should "write the file to the specified path" in {
