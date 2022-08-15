@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
   lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.60"
   lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.17.233"
-  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.243"
+  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.255"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.12"
   lazy val circeCore = "io.circe" %% "circe-core" % "0.14.2"
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.2"

@@ -2,6 +2,7 @@ package uk.gov.nationalarchives.downloadfiles
 
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification.{S3BucketEntity, S3Entity, S3EventNotificationRecord, S3ObjectEntity}
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken
+import graphql.codegen.AddFileStatus.addFileStatus.AddFileStatus
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, GetClientFileMetadata, Variables, document}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.{ArgumentCaptor, MockitoSugar}
@@ -18,6 +19,7 @@ import uk.gov.nationalarchives.tdr.GraphQLClient.Extensions
 import uk.gov.nationalarchives.tdr.error.{GraphQlError, HttpException}
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
 import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
+import graphql.codegen.AddFileStatus.{addFileStatus => afs}
 
 import java.nio.file.Path
 import java.util.UUID
@@ -177,6 +179,68 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
 
     val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, UUID.randomUUID(), lambdaConfig).failed.futureValue
     res.getMessage shouldEqual "GraphQL response contained errors: General error"
+  }
+
+  "addFileStatus method" should "add a file status" in {
+    val client = mock[GraphQLClient[afs.Data, afs.Variables]]
+    val keycloakUtils = mock[KeycloakUtils]
+    val fileID = UUID.randomUUID()
+
+    when(keycloakUtils.serviceAccountToken[Identity](any[String], any[String])(
+      any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]], any[TdrKeycloakDeployment]))
+      .thenReturn(Future.successful(new BearerAccessToken("token")))
+
+    when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[afs.Variables]])(any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]]))
+      .thenReturn(Future.successful(GraphQlResponse(Some(afs.Data(AddFileStatus(fileID, "Upload", "Success"))), List())))
+
+    val fileUtils = FileUtils()
+    val status = fileUtils.addFileStatus(keycloakUtils, client, fileID, lambdaConfig).futureValue
+
+    status.statusType should equal("Upload")
+    status.statusValue should equal("Success")
+    status.fileId should equal(fileID)
+
+    val expectedId = "client_id"
+    val expectedSecret = "secret"
+    verify(keycloakUtils).serviceAccountToken(expectedId, expectedSecret)
+  }
+
+  "addFileStatus method" should "error if the graphql query returns not authorised errors" in {
+    val client = mock[GraphQLClient[afs.Data, afs.Variables]]
+    val keycloakUtils = mock[KeycloakUtils]
+
+    val uuid = UUID.randomUUID()
+
+    when(keycloakUtils.serviceAccountToken[Identity](any[String], any[String])(
+      any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]], any[TdrKeycloakDeployment]))
+      .thenReturn(Future.successful(new BearerAccessToken("token")))
+    val graphqlResponse: GraphQlResponse[afs.Data] =
+      GraphQlResponse(Option.empty, List(GraphQlError(GraphQLClient.Error("Not authorised message",
+        List(), List(), Some(Extensions(Some("NOT_AUTHORISED")))))))
+    when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[afs.Variables]])(any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]]))
+      .thenReturn(Future.successful(graphqlResponse))
+
+    val res: Throwable = FileUtils().addFileStatus(keycloakUtils, client, uuid, lambdaConfig).failed.futureValue
+
+    res.getMessage shouldEqual "Not authorised message"
+  }
+
+  "addFileStatus method" should "error if the graphql query returns a general error" in {
+    val client = mock[GraphQLClient[afs.Data, afs.Variables]]
+    val keycloakUtils = mock[KeycloakUtils]
+
+    when(keycloakUtils.serviceAccountToken[Identity](any[String], any[String])(
+      any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]], any[TdrKeycloakDeployment]))
+      .thenReturn(Future.successful(new BearerAccessToken("token")))
+    val graphqlResponse: GraphQlResponse[afs.Data] =
+      GraphQlResponse(Option.empty, List(GraphQlError(GraphQLClient.Error("General error",
+        List(), List(), Option.empty))))
+    when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[afs.Variables]])(any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]]))
+      .thenReturn(Future.successful(graphqlResponse))
+
+    val fileId = UUID.randomUUID()
+    val res: Throwable = FileUtils().addFileStatus(keycloakUtils, client, fileId, lambdaConfig).failed.futureValue
+    res.getMessage shouldEqual s"Unable to add file status with statusType 'Upload' and value 'Success' for file '$fileId'. Errors: General error"
   }
 
   "The writeFileFromS3 method" should "write the file to the specified path" in {
