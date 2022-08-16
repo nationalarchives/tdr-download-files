@@ -29,7 +29,7 @@ object AWSUtils extends MockitoSugar {
 
   def putFile(location: String): PutObjectResponse = {
     val path = new File(getClass.getResource(s"/testfiles/$location").getPath).toPath
-    val putObjectRequest = PutObjectRequest.builder.bucket("testbucket").key("userId/f0a73877-6057-4bbb-a1eb-7c7b73cab586/acea5919-25a3-4c6b-8908-fa47cc77878f").build
+    val putObjectRequest = PutObjectRequest.builder.bucket("testbucket").key("6c6fbea8-4925-402c-92a6-f5d625b7eca1/f0a73877-6057-4bbb-a1eb-7c7b73cab586/acea5919-25a3-4c6b-8908-fa47cc77878f").build
     s3Client.putObject(putObjectRequest, path)
   }
 

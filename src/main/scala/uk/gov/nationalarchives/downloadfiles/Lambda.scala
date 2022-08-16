@@ -104,7 +104,7 @@ class Lambda {
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
             val dirtyBucketName = record.getS3.getBucket.getName
             val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
-              val output = DownloadOutput(consignmentId, fileId, originalPath)
+              val output = DownloadOutput(consignmentId, fileId, originalPath, UUID.fromString(userId))
               val outputString = output.asJson.noSpaces
               fileFormatSendMessage(outputString)
               antivirusSendMessage(AntivirusDownloadOutput(consignmentId, fileId, originalPath, userId, dirtyBucketName).asJson.noSpaces)
@@ -160,6 +160,6 @@ class Lambda {
 
 object Lambda {
   case class DownloadOutputWithReceiptHandle(downloadOutput: DownloadOutput, receiptHandle: String)
-  case class DownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String)
+  case class DownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String, userId: UUID)
   case class AntivirusDownloadOutput(consignmentId: UUID, fileId: UUID, originalPath: String, userId: String, dirtyBucketName: String)
 }
