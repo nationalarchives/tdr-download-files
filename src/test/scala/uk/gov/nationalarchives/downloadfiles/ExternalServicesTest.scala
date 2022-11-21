@@ -78,7 +78,7 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
   }
 
   override def beforeAll(): Unit = {
-    s3Api.start
+    wiremockS3.start()
     wiremockGraphqlServer.start()
     wiremockAuthServer.start()
     wiremockKmsEndpoint.start()
@@ -89,7 +89,6 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     stubKmsResponse
     graphqlOriginalPath
     authOk
-    createBucket
     setupSsmServer()
     inputQueueHelper.createQueue
     avOutputQueueHelper.createQueue
@@ -102,10 +101,11 @@ class ExternalServicesTest extends AnyFlatSpec with BeforeAndAfterEach with Befo
     wiremockAuthServer.stop()
     wiremockKmsEndpoint.stop()
     wiremockSsmServer.stop()
+    wiremockS3.stop()
   }
 
   override def afterEach(): Unit = {
-    deleteBucket()
+    wiremockS3.resetAll()
     wiremockAuthServer.resetAll()
     wiremockGraphqlServer.resetAll()
     wiremockKmsEndpoint.resetAll()
