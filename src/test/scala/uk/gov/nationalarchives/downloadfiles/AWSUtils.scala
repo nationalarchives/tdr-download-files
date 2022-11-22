@@ -1,11 +1,9 @@
 package uk.gov.nationalarchives.downloadfiles
 
-import java.io.File
-import java.net.URI
-
 import com.amazonaws.services.lambda.runtime.events.SQSEvent
 import com.amazonaws.services.lambda.runtime.events.SQSEvent.SQSMessage
-import io.findify.s3mock.S3Mock
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, get, urlEqualTo}
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import org.mockito.MockitoSugar
 import software.amazon.awssdk.regions.Region
@@ -14,23 +12,21 @@ import software.amazon.awssdk.services.s3.model._
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model._
 
+import java.net.URI
+import java.nio.file.{Files, Paths}
 import scala.io.Source.fromResource
 import scala.jdk.CollectionConverters._
 
 object AWSUtils extends MockitoSugar {
 
-  val s3Client: S3Client = S3Client.builder
-    .region(Region.EU_WEST_2)
-    .endpointOverride(URI.create("http://localhost:8003/"))
-    .build()
+  val wiremockS3 = new WireMockServer(8003)
 
-  def createBucket: CreateBucketResponse = s3Client.createBucket(CreateBucketRequest.builder.bucket("testbucket").build)
-  def deleteBucket(): DeleteBucketResponse = s3Client.deleteBucket(DeleteBucketRequest.builder.bucket("testbucket").build)
-
-  def putFile(location: String): PutObjectResponse = {
-    val path = new File(getClass.getResource(s"/testfiles/$location").getPath).toPath
-    val putObjectRequest = PutObjectRequest.builder.bucket("testbucket").key("6c6fbea8-4925-402c-92a6-f5d625b7eca1/f0a73877-6057-4bbb-a1eb-7c7b73cab586/acea5919-25a3-4c6b-8908-fa47cc77878f").build
-    s3Client.putObject(putObjectRequest, path)
+  def putFile(location: String): Unit = {
+    val path = getClass.getResource(s"/testfiles/$location").getPath
+    val bytes = Files.readAllBytes(Paths.get(path))
+    wiremockS3.stubFor(get(urlEqualTo(s"/6c6fbea8-4925-402c-92a6-f5d625b7eca1/f0a73877-6057-4bbb-a1eb-7c7b73cab586/acea5919-25a3-4c6b-8908-fa47cc77878f"))
+      .willReturn(aResponse().withStatus(200).withBody(bytes))
+    )
   }
 
   val port = 8001
@@ -45,8 +41,6 @@ object AWSUtils extends MockitoSugar {
   val avOutputQueueUrl = s"http://localhost:$port/queue/$avOutputQueueName"
   val ffOutputQueueUrl = s"http://localhost:$port/queue/$ffOutputQueueName"
   val checksumOutputQueueUrl = s"http://localhost:$port/queue/$checksumOutputQueueName"
-
-  val s3Api = S3Mock(port = 8003, dir = "/tmp/s3")
 
   val inputQueueHelper: QueueHelper = QueueHelper(inputQueueUrl)
   val avOutputQueueHelper: QueueHelper = QueueHelper(avOutputQueueUrl)

@@ -11,7 +11,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{equal, _}
 import sangria.ast.Document
-import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.{S3AsyncClient, S3Client}
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, GetObjectResponse}
 import sttp.client3.{HttpError, HttpURLConnectionBackend, Identity, Response, SttpBackend}
 import sttp.model.StatusCode
@@ -20,9 +20,11 @@ import uk.gov.nationalarchives.tdr.error.{GraphQlError, HttpException}
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
 import uk.gov.nationalarchives.tdr.{GraphQLClient, GraphQlResponse}
 import graphql.codegen.AddFileStatus.{addFileStatus => afs}
+import org.eclipse.jetty.util.Promise.Completable
 
 import java.nio.file.Path
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -244,10 +246,10 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
   }
 
   "The writeFileFromS3 method" should "write the file to the specified path" in {
-    val s3Client = mock[S3Client]
+    val s3Client = mock[S3AsyncClient]
     val requestCaptor: ArgumentCaptor[GetObjectRequest] = ArgumentCaptor.forClass(classOf[GetObjectRequest])
     val pathCaptor: ArgumentCaptor[Path] = ArgumentCaptor.forClass(classOf[Path])
-    val mockResponse = GetObjectResponse.builder.build()
+    val mockResponse = CompletableFuture.completedFuture(GetObjectResponse.builder.build())
     val path = "path"
     val fileId = UUID.randomUUID()
     val bucket = new S3BucketEntity("bucket", null, "")
@@ -263,7 +265,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
   }
 
   "The writeFileFromS3 method" should "return an error if there is an error writing the file" in {
-    val s3Client = mock[S3Client]
+    val s3Client = mock[S3AsyncClient]
     val path = "path"
     val fileId = UUID.randomUUID()
     val bucket = new S3BucketEntity("bucket", null, "")

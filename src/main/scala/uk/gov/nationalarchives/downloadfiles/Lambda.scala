@@ -17,9 +17,12 @@ import software.amazon.awssdk.services.sqs.model.{DeleteMessageResponse, SendMes
 import software.amazon.awssdk.services.ssm.SsmClient
 import software.amazon.awssdk.services.ssm.model.GetParameterRequest
 import sttp.client3.{HttpURLConnectionBackend, Identity, SttpBackend}
-import uk.gov.nationalarchives.aws.utils.Clients.{kms, s3, sqs}
-import uk.gov.nationalarchives.aws.utils.S3EventDecoder._
-import uk.gov.nationalarchives.aws.utils.{KMSUtils, SQSUtils}
+import uk.gov.nationalarchives.aws.utils.kms.KMSClients.kms
+import uk.gov.nationalarchives.aws.utils.s3.S3Clients.{s3, s3Async}
+import uk.gov.nationalarchives.aws.utils.sqs.SQSClients.sqs
+import uk.gov.nationalarchives.aws.utils.decoders.S3EventDecoder._
+import uk.gov.nationalarchives.aws.utils.kms.KMSUtils
+import uk.gov.nationalarchives.aws.utils.sqs.SQSUtils
 import uk.gov.nationalarchives.downloadfiles.Lambda.{AntivirusDownloadOutput, DownloadOutput, DownloadOutputWithReceiptHandle}
 import uk.gov.nationalarchives.tdr.GraphQLClient
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
@@ -38,21 +41,21 @@ class Lambda {
   val config: Config = ConfigFactory.load
   val kmsUtils: KMSUtils = KMSUtils(kms(config.getString("kms.endpoint")), Map("LambdaFunctionName" -> config.getString("function.name")))
   val clientSecret: String = getClientSecret(config.getString("auth.client.secret_path"), config.getString("ssm.endpoint"))
-  val lambdaConfig: Map[String, String] = kmsUtils.decryptValuesFromConfig(
-    List(
-      "sqs.queue.input",
-      "sqs.queue.fileformat",
-      "sqs.queue.antivirus",
-      "sqs.queue.checksum",
-      "efs.root.location",
-      "url.auth",
-      "url.api",
-      "auth.client.id"
-    )) + ("auth.client.secret" -> clientSecret)
+  val lambdaConfig: Map[String, String] = List(
+    "sqs.queue.input",
+    "sqs.queue.fileformat",
+    "sqs.queue.antivirus",
+    "sqs.queue.checksum",
+    "efs.root.location",
+    "url.auth",
+    "url.api",
+    "auth.client.id"
+  ).map(configName => configName -> kmsUtils.decryptValue(config.getString(configName))).toMap + ("auth.client.secret" -> clientSecret)
+
 
 
   val downloadFilesQueueUrl: String = lambdaConfig("sqs.queue.input")
-  val sqsUtils: SQSUtils = SQSUtils(sqs)
+  val sqsUtils: SQSUtils = SQSUtils(sqs(config.getString("sqs.endpoint")))
   val deleteMessage: String => DeleteMessageResponse = sqsUtils.delete(downloadFilesQueueUrl, _)
   val fileFormatSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.fileformat"), _)
   val antivirusSendMessage: String => SendMessageResponse = sqsUtils.send(lambdaConfig("sqs.queue.antivirus"), _)
@@ -103,7 +106,7 @@ class Lambda {
             new File(s"$prefix/$writeDirectory").mkdirs()
             val writePath = s"$efsRootLocation/$consignmentId/$originalPath"
             val dirtyBucketName = record.getS3.getBucket.getName
-            val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3).map(_ => {
+            val s3Response = fileUtils.writeFileFromS3(writePath, fileId, record, s3Async(config.getString("s3.endpoint"))).map(_ => {
               val output = DownloadOutput(consignmentId, fileId, originalPath, UUID.fromString(userId))
               val outputString = output.asJson.noSpaces
               fileFormatSendMessage(outputString)

@@ -1,16 +1,18 @@
 package uk.gov.nationalarchives.downloadfiles
 
+import cats.effect.unsafe.implicits.global
+
 import java.net.URLDecoder
 import java.nio.file.Paths
 import java.util.UUID
-
 import com.amazonaws.services.lambda.runtime.events.models.s3.S3EventNotification.S3EventNotificationRecord
 import graphql.codegen.AddFileStatus.{addFileStatus => afs}
 import graphql.codegen.AddFileStatus.addFileStatus.AddFileStatus
 import graphql.codegen.GetOriginalPath.getOriginalPath.{Data, Variables, document}
 import graphql.codegen.types.AddFileStatusInput
-import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.{S3AsyncClient, S3Client}
+import uk.gov.nationalarchives.aws.utils.s3.S3Clients.s3
+import uk.gov.nationalarchives.aws.utils.s3.S3Utils
 import sttp.client3.{Identity, SttpBackend}
 import uk.gov.nationalarchives.tdr.error.NotAuthorisedError
 import uk.gov.nationalarchives.tdr.keycloak.{KeycloakUtils, TdrKeycloakDeployment}
@@ -62,16 +64,12 @@ class FileUtils()(implicit val executionContext: ExecutionContext, keycloakDeplo
     case errors => failed(s"Unable to add file status with statusType '$statusType' and value '$statusValue' for file '$fileId'. Errors: ${errors.map(e => e.message).mkString}")
   }
 
-  def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3Client): Try[String] = {
+  def writeFileFromS3(path: String, fileId: UUID, record: S3EventNotificationRecord, s3: S3AsyncClient): Try[String] = {
+    val s3Utils = S3Utils(s3)
     val s3Obj = record.getS3
     val key = s3Obj.getObject.getKey
-    val request = GetObjectRequest
-      .builder
-      .bucket(s3Obj.getBucket.getName)
-      .key(URLDecoder.decode(key, "utf-8"))
-      .build
-    Try {
-      s3.getObject(request, Paths.get(path))
+    Try{
+      s3Utils.downloadFiles(s3Obj.getBucket.getName, key, Option(Paths.get(path))).unsafeRunSync()
       key
     }
   }

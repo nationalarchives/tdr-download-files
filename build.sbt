@@ -5,10 +5,6 @@ ThisBuild / version          := "0.1.0-SNAPSHOT"
 ThisBuild / organization     := "com.example"
 ThisBuild / organizationName := "example"
 
-resolvers ++= Seq[Resolver](
-  "TDR Releases" at "s3://tdr-releases-mgmt"
-)
-
 lazy val root = (project in file("."))
   .settings(
     name := "tdr-download-files",
@@ -20,16 +16,19 @@ lazy val root = (project in file("."))
         circeParser,
         lambdaJavaCore,
         lambdaJavaEvents,
-        awsUtils,
+        s3Utils,
+        kmsUtils,
+        sqsUtils,
+        decoderUtils,
         authUtils,
         generatedGraphql,
         graphqlClient,
         scalaLogging,
         logback,
         logstashLogbackEncoder,
+        typesafe,
         scalaTest % Test,
         mockito % Test,
-        s3Mock % Test,
         elasticMq % Test,
         elasticMqSqs % Test
       )
