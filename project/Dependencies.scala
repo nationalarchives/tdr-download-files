@@ -1,6 +1,8 @@
 import sbt._
 
 object Dependencies {
+  private val awsUtilsVersion = "0.1.55"
+
   lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.60"
   lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.17.233"
   lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.255"
@@ -10,10 +12,10 @@ object Dependencies {
   lazy val circeParser = "io.circe" %% "circe-parser" % "0.14.2"
   lazy val lambdaJavaCore = "com.amazonaws" % "aws-lambda-java-core" % "1.2.1"
   lazy val lambdaJavaEvents = "com.amazonaws" % "aws-lambda-java-events" % "3.11.0"
-  lazy val s3Utils =  "uk.gov.nationalarchives" %% "s3-utils" % "0.1.55"
-  lazy val sqsUtils =  "uk.gov.nationalarchives" %% "sqs-utils" % "0.1.55"
-  lazy val kmsUtils =  "uk.gov.nationalarchives" %% "kms-utils" % "0.1.55"
-  lazy val decoderUtils =  "uk.gov.nationalarchives" %% "decoders-utils" % "0.1.55"
+  lazy val s3Utils =  "uk.gov.nationalarchives" %% "s3-utils" % awsUtilsVersion
+  lazy val sqsUtils =  "uk.gov.nationalarchives" %% "sqs-utils" % awsUtilsVersion
+  lazy val kmsUtils =  "uk.gov.nationalarchives" %% "kms-utils" % awsUtilsVersion
+  lazy val decoderUtils =  "uk.gov.nationalarchives" %% "decoders-utils" % awsUtilsVersion
   lazy val graphqlClient = "uk.gov.nationalarchives" %% "tdr-graphql-client" % "0.0.38"
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
   lazy val logback = "ch.qos.logback" % "logback-classic" % "1.2.11"
