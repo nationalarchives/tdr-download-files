@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
   private val awsUtilsVersion = "0.1.55"
 
-  lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.60"
+  lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.99"
   lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.17.233"
   lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.284"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.14"
