@@ -143,7 +143,7 @@ class FileUtilsTest extends AnyFlatSpec with MockitoSugar with ScalaFutures  {
     when(client.getResult[Identity](any[BearerAccessToken], any[Document], any[Option[Variables]])(any[SttpBackend[Identity, Any]], any[ClassTag[Identity[_]]])).thenThrow(new HttpException(response))
 
     val res: Throwable = FileUtils().getFilePath(keycloakUtils, client, uuid, lambdaConfig).failed.futureValue
-    res.getMessage shouldEqual "Unexpected response from GraphQL API: Response(Left(Graphql error),503,,List(),List(),RequestMetadata(GET,http://example.com,List()))"
+    res.getMessage shouldEqual "Unexpected response from GraphQL API: Response(Left(Graphql error),503,Service Unavailable,List(),List(),RequestMetadata(GET,http://example.com,List()))"
   }
 
   "The getFilePath method" should "error if the graphql query returns not authorised errors" in {
