@@ -22,6 +22,6 @@ object Dependencies {
   lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "7.2"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "1.17.12"
   lazy val typesafe = "com.typesafe" % "config" % "1.4.2"
-  lazy val elasticMq = "org.elasticmq" %% "elasticmq-server" % "1.3.7"
-  lazy val elasticMqSqs = "org.elasticmq" %% "elasticmq-rest-sqs" % "1.3.7"
+  lazy val elasticMq = "org.elasticmq" %% "elasticmq-server" % "1.3.14"
+  lazy val elasticMqSqs = "org.elasticmq" %% "elasticmq-rest-sqs" % "1.3.14"
 }
