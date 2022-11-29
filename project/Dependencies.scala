@@ -18,7 +18,7 @@ object Dependencies {
   lazy val decoderUtils =  "uk.gov.nationalarchives" %% "decoders-utils" % awsUtilsVersion
   lazy val graphqlClient = "uk.gov.nationalarchives" %% "tdr-graphql-client" % "0.0.73"
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
-  lazy val logback = "ch.qos.logback" % "logback-classic" % "1.2.11"
+  lazy val logback = "ch.qos.logback" % "logback-classic" % "1.4.5"
   lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "7.2"
   lazy val mockito = "org.mockito" %% "mockito-scala" % "1.17.12"
   lazy val typesafe = "com.typesafe" % "config" % "1.4.2"
