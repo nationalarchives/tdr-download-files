@@ -3,9 +3,9 @@ import sbt._
 object Dependencies {
   private val awsUtilsVersion = "0.1.57"
 
-  lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.99"
+  lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.100"
   lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.17.295"
-  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.284"
+  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.287"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.14"
   lazy val circeCore = "io.circe" %% "circe-core" % "0.14.3"
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.3"
@@ -16,7 +16,7 @@ object Dependencies {
   lazy val sqsUtils =  "uk.gov.nationalarchives" %% "sqs-utils" % awsUtilsVersion
   lazy val kmsUtils =  "uk.gov.nationalarchives" %% "kms-utils" % awsUtilsVersion
   lazy val decoderUtils =  "uk.gov.nationalarchives" %% "decoders-utils" % awsUtilsVersion
-  lazy val graphqlClient = "uk.gov.nationalarchives" %% "tdr-graphql-client" % "0.0.73"
+  lazy val graphqlClient = "uk.gov.nationalarchives" %% "tdr-graphql-client" % "0.0.74"
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
   lazy val logback = "ch.qos.logback" % "logback-classic" % "1.4.5"
   lazy val logstashLogbackEncoder = "net.logstash.logback" % "logstash-logback-encoder" % "7.2"
