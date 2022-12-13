@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val awsUtilsVersion = "0.1.58"
+  private val awsUtilsVersion = "0.1.59"
 
   lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.100"
   lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.17.295"
