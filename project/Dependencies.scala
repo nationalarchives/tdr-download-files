@@ -4,7 +4,7 @@ object Dependencies {
   private val awsUtilsVersion = "0.1.64"
 
   lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.105"
-  lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.19.12"
+  lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.19.13"
   lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.292"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.15"
   lazy val circeCore = "io.circe" %% "circe-core" % "0.14.3"
