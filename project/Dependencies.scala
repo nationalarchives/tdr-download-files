@@ -5,7 +5,7 @@ object Dependencies {
 
   lazy val authUtils = "uk.gov.nationalarchives" %% "tdr-auth-utils" % "0.0.108"
   lazy val awsSsm = "software.amazon.awssdk" % "ssm" % "2.19.19"
-  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.296"
+  lazy val generatedGraphql =  "uk.gov.nationalarchives" %% "tdr-generated-graphql" % "0.0.300"
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.2.15"
   lazy val circeCore = "io.circe" %% "circe-core" % "0.14.3"
   lazy val circeGeneric = "io.circe" %% "circe-generic" % "0.14.3"
